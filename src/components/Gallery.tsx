@@ -1,12 +1,26 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
+import type { CardData, ImageExportMeta } from '../types';
 
-export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }) {
+export interface RunData {
+    meta?: ImageExportMeta;
+    cards?: CardData[];
+    // Other properties from raw run might exist, but we care about these
+}
+
+export interface GalleryProps {
+    runs: RunData[];
+    onSelectRun: (index: number) => void;
+    filters?: Record<string, string>;
+    onFilterChange?: (filters: Record<string, string>) => void;
+}
+
+export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: GalleryProps) {
     const characterFilter = filters.character || 'All';
     const outcomeFilter = filters.outcome || 'All';
     const ascensionFilter = filters.ascension || 'All';
     const sortBy = filters.sortBy || 'date_desc';
 
-    const updateFilter = (key, value) => {
+    const updateFilter = (key: string, value: string) => {
         if (onFilterChange) {
             onFilterChange({ ...filters, [key]: value });
         }
@@ -24,7 +38,7 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }) {
 
     const uniqueAscensions = useMemo(() => {
         const ascensions = new Set(runs.map(r => r.meta?.ascension ?? 0));
-        return ['All', ...Array.from(ascensions).sort((a, b) => a - b).map(String)];
+        return ['All', ...Array.from(ascensions).sort((a: any, b: any) => Number(a) - Number(b)).map(String)];
     }, [runs]);
 
     const processedRuns = useMemo(() => {
@@ -43,10 +57,10 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }) {
         result.sort((a, b) => {
             if (sortBy === 'date_desc') return b.index - a.index;
             if (sortBy === 'date_asc') return a.index - b.index;
-            if (sortBy === 'asc_desc') return (b.run.meta?.ascension || 0) - (a.run.meta?.ascension || 0);
-            if (sortBy === 'asc_asc') return (a.run.meta?.ascension || 0) - (b.run.meta?.ascension || 0);
+            if (sortBy === 'asc_desc') return Number(b.run.meta?.ascension || 0) - Number(a.run.meta?.ascension || 0);
+            if (sortBy === 'asc_asc') return Number(a.run.meta?.ascension || 0) - Number(b.run.meta?.ascension || 0);
 
-            const getFloor = (f) => f === '?' ? -1 : parseInt(f, 10);
+            const getFloor = (f: string | number | undefined) => f === '?' || f === undefined ? -1 : parseInt(String(f), 10);
             if (sortBy === 'floor_desc') return getFloor(b.run.meta?.floor) - getFloor(a.run.meta?.floor);
             if (sortBy === 'floor_asc') return getFloor(a.run.meta?.floor) - getFloor(b.run.meta?.floor);
             return 0;
@@ -121,7 +135,7 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }) {
                             'strike_silent', 'defend_silent', 'strike_defect', 'defend_defect',
                             'strike_necrobinder', 'defend_necrobinder', 'strike_regent', 'defend_regent'
                         ];
-                        let bgCards = [];
+                        let bgCards: CardData[] = [];
                         if (run.cards && run.cards.length > 0) {
                             bgCards = run.cards.filter(c => !starterIds.includes(c.id)).slice(0, 1);
                             if (bgCards.length === 0) bgCards = run.cards.slice(0, 1); // Fallback
@@ -181,8 +195,8 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }) {
                                                 borderLeft: i > 0 ? '2px solid rgba(0,0,0,0.5)' : 'none'
                                             }}
                                             onError={(e) => {
-                                                e.target.onerror = null;
-                                                e.target.style.display = 'none';
+                                                e.currentTarget.onerror = null;
+                                                e.currentTarget.style.display = 'none';
                                             }}
                                         />
                                     ))}

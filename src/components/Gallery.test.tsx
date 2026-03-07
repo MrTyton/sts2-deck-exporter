@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { expect, describe, it, vi } from 'vitest';
 import { Gallery } from './Gallery';
 
-const GalleryWrapper = (props) => {
+const GalleryWrapper = (props: any) => {
     const [filters, setFilters] = useState({});
     return <Gallery {...props} filters={filters} onFilterChange={setFilters} />;
 };
 
 describe('Gallery', () => {
-    const mockRuns = [
+    const mockRuns: any[] = [
         {
             meta: { characterName: 'The Ironclad', ascension: 20, outcome: 'Victory', floor: 51 },
             cards: [{ id: 'strike_ironclad' }]
@@ -65,7 +65,7 @@ describe('Gallery', () => {
         render(<GalleryWrapper runs={mockRuns} onSelectRun={onSelectMock} />);
 
         const ironcladTile = screen.getByRole('heading', { name: 'The Ironclad' }).closest('.run-tile');
-        fireEvent.click(ironcladTile);
+        fireEvent.click(ironcladTile!);
 
         // The Ironclad is at index 0
         expect(onSelectMock).toHaveBeenCalledWith(0);

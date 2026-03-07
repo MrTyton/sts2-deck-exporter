@@ -1,20 +1,17 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { expect, describe, it, vi, beforeEach } from 'vitest';
 import { DeckVisualizer } from './DeckVisualizer';
-import * as canvasExport from '../utils/canvasExport';
-
 vi.mock('../utils/canvasExport', () => ({
     generateDeckImage: vi.fn(),
 }));
 
 describe('DeckVisualizer', () => {
-    const mockCards = [
+    const mockCards: any[] = [
         { id: 'strike', count: 3, upgraded: false, upgrades: 0 },
         { id: 'defend', count: 2, upgraded: true, upgrades: 1, enchantment: 'FIRE' }
     ];
 
-    const mockMeta = {
+    const mockMeta: any = {
         characterName: 'The Ironclad',
         ascension: 20,
         outcome: 'Victory',
@@ -49,7 +46,7 @@ describe('DeckVisualizer', () => {
     it('renders the relics accurately when provided', () => {
         render(<DeckVisualizer cards={mockCards} meta={mockMeta} />);
         expect(screen.getByText('Relics')).toBeInTheDocument();
-        const relicImages = screen.getAllByRole('img').filter(img => img.src.includes('relics'));
+        const relicImages = screen.getAllByRole('img').filter(img => (img as HTMLImageElement).src.includes('relics')) as HTMLImageElement[];
         expect(relicImages.length).toBe(2);
         expect(relicImages[0].alt).toBe('burning_blood');
     });
@@ -79,6 +76,6 @@ describe('DeckVisualizer', () => {
         render(<DeckVisualizer cards={mockCards} meta={mockMeta} />);
         const resetBtn = screen.getByText('Reset');
         fireEvent.click(resetBtn);
-        expect(global.window.location.assign).toHaveBeenCalledWith(window.location.pathname);
+        expect(window.location.assign).toHaveBeenCalledWith(window.location.pathname);
     });
 });

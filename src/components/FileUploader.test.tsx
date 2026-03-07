@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { expect, describe, it, vi } from 'vitest';
 import { FileUploader } from './FileUploader';
@@ -12,7 +11,7 @@ describe('FileUploader', () => {
 
     it('changes styling on drag enter and leave', () => {
         const { container } = render(<FileUploader onDeckLoaded={() => { }} />);
-        const uploaderDiv = container.firstChild;
+        const uploaderDiv = container.firstChild as HTMLDivElement;
 
         expect(uploaderDiv.className).not.toContain('dragging');
 
@@ -20,7 +19,7 @@ describe('FileUploader', () => {
         expect(uploaderDiv.className).toContain('dragging');
 
         fireEvent.dragLeave(uploaderDiv);
-        expect(uploaderDiv.className).not.toContain('dragging');
+        expect(uploaderDiv!.className).not.toContain('dragging');
     });
 
     it('displays an error if the JSON is invalid', async () => {
@@ -29,7 +28,7 @@ describe('FileUploader', () => {
         const { container } = render(<FileUploader onDeckLoaded={() => { }} />);
         const input = container.querySelector('#file-upload');
 
-        fireEvent.change(input, { target: { files: [file] } });
+        fireEvent.change(input!, { target: { files: [file] } });
 
         await waitFor(() => {
             expect(screen.getByText(/Parse error in test.run:/)).toBeInTheDocument();
@@ -42,7 +41,7 @@ describe('FileUploader', () => {
         const { container } = render(<FileUploader onDeckLoaded={() => { }} />);
         const input = container.querySelector('#file-upload');
 
-        fireEvent.change(input, { target: { files: [file] } });
+        fireEvent.change(input!, { target: { files: [file] } });
 
         await waitFor(() => {
             expect(screen.getByText(/Invalid format in test.run/)).toBeInTheDocument();
@@ -61,7 +60,7 @@ describe('FileUploader', () => {
         const { container } = render(<FileUploader onDeckLoaded={onDeckLoadedMock} />);
         const input = container.querySelector('#file-upload');
 
-        fireEvent.change(input, { target: { files: [file] } });
+        fireEvent.change(input!, { target: { files: [file] } });
 
         await waitFor(() => {
             expect(onDeckLoadedMock).toHaveBeenCalledTimes(1);

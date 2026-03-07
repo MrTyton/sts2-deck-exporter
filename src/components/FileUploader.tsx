@@ -1,42 +1,47 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import type { DragEvent, ChangeEvent } from 'react';
 
-export function FileUploader({ onDeckLoaded }) {
+export interface FileUploaderProps {
+    onDeckLoaded: (results: any[]) => void;
+}
+
+export function FileUploader({ onDeckLoaded }: FileUploaderProps) {
     const [isDragging, setIsDragging] = useState(false);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
 
-    const handleDrag = useCallback((e) => {
+    const handleDrag = useCallback((e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.stopPropagation();
     }, []);
 
-    const handleDragIn = useCallback((e) => {
+    const handleDragIn = useCallback((e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.stopPropagation();
         setIsDragging(true);
     }, []);
 
-    const handleDragOut = useCallback((e) => {
+    const handleDragOut = useCallback((e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.stopPropagation();
         setIsDragging(false);
     }, []);
 
-    const processFiles = async (files) => {
+    const processFiles = async (files: FileList | File[]) => {
         setError(null);
         if (!files || files.length === 0) return;
 
         const readPromises = Array.from(files).map(file => {
-            return new Promise((resolve, reject) => {
+            return new Promise<any>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     try {
-                        const json = JSON.parse(e.target.result);
+                        const json = JSON.parse(e.target?.result as string);
                         if (!json.players || !json.players[0] || !json.players[0].deck) {
                             reject(new Error(`Invalid format in ${file.name}`));
                             return;
                         }
                         resolve(json);
-                    } catch (err) {
+                    } catch (err: any) {
                         reject(new Error(`Parse error in ${file.name}: ${err.message}`));
                     }
                 };
@@ -48,12 +53,12 @@ export function FileUploader({ onDeckLoaded }) {
         try {
             const results = await Promise.all(readPromises);
             onDeckLoaded(results);
-        } catch (err) {
+        } catch (err: any) {
             setError(err.message);
         }
     };
 
-    const handleDrop = useCallback((e) => {
+    const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.stopPropagation();
         setIsDragging(false);
@@ -62,7 +67,7 @@ export function FileUploader({ onDeckLoaded }) {
         }
     }, [onDeckLoaded]);
 
-    const handleFileInput = (e) => {
+    const handleFileInput = (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
             processFiles(e.target.files);
         }
@@ -83,7 +88,7 @@ export function FileUploader({ onDeckLoaded }) {
                 transition: 'all 0.3s ease',
                 cursor: 'pointer'
             }}
-            onClick={() => document.getElementById('file-upload').click()}
+            onClick={() => { const input = document.getElementById('file-upload'); if (input) input.click(); }}
         >
             <input
                 id="file-upload"

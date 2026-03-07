@@ -1,16 +1,17 @@
-import React, { useState, useCallback, useEffect } from 'react'
-import { FileUploader } from './components/FileUploader.jsx'
-import { DeckVisualizer } from './components/DeckVisualizer.jsx'
-import { Gallery } from './components/Gallery.jsx'
-import { parseDeckArray } from './utils/deckParser.js'
-import { getCharacterName } from './utils/characterMapper.js'
+import { useState, useCallback, useEffect } from 'react';
+import { FileUploader } from './components/FileUploader'
+import { DeckVisualizer } from './components/DeckVisualizer'
+import { Gallery } from './components/Gallery'
+import type { RunData } from './components/Gallery'
+import { parseDeckArray } from './utils/deckParser'
+import { getCharacterName } from './utils/characterMapper'
 import * as lzString from 'lz-string'
 
 function App() {
-    const [runs, setRuns] = useState([])
-    const [selectedRunId, setSelectedRunId] = useState(null)
+    const [runs, setRuns] = useState<RunData[]>([])
+    const [selectedRunId, setSelectedRunId] = useState<number | null>(null)
     const [isSharedView, setIsSharedView] = useState(false)
-    const [galleryFilters, setGalleryFilters] = useState({
+    const [galleryFilters, setGalleryFilters] = useState<Record<string, string>>({
         character: 'All',
         outcome: 'All',
         ascension: 'All',
@@ -30,7 +31,7 @@ function App() {
                     if (Array.isArray(parsed)) {
                         setRuns([{
                             cards: parseDeckArray(parsed),
-                            meta: null
+                            meta: undefined
                         }])
                     } else {
                         setRuns([{
@@ -52,24 +53,24 @@ function App() {
         if (selectedRunId !== null && runs[selectedRunId]) {
             const run = runs[selectedRunId]
             try {
-                const minimalDeck = run.cards.map(c => ({
+                const minimalDeck = run.cards ? run.cards.map(c => ({
                     id: c.id,
-                    upgrades: c.current_upgrade_level || c.upgrades || 0,
-                    enchantmentId: c.enchantment ? c.enchantment.id : null
-                }))
+                    upgrades: c.upgrades || 0,
+                    enchantmentId: c.enchantment || null
+                })) : [];
                 const payload = { deck: minimalDeck, meta: run.meta }
                 const compressed = lzString.compressToEncodedURIComponent(JSON.stringify(payload))
-                window.history.replaceState(null, null, `#deck=${compressed}`)
+                window.history.replaceState(null, '', `#deck=${compressed}`)
             } catch (err) {
                 console.warn("Could not generate share URL", err)
             }
         } else {
             // clear hash if back in gallery
-            window.history.replaceState(null, null, ' ')
+            window.history.replaceState(null, '', ' ')
         }
     }, [selectedRunId, runs])
 
-    const handleDeckLoaded = useCallback((rawJsons) => {
+    const handleDeckLoaded = useCallback((rawJsons: any | any[]) => {
         setIsSharedView(false);
         const jsonArray = Array.isArray(rawJsons) ? rawJsons : [rawJsons];
 
@@ -77,9 +78,9 @@ function App() {
             const deckArray = rawJson.players[0].deck;
             const relicsArray = rawJson.players[0].relics || [];
 
-            let runLengthStr = "?";
+            let runLengthStr: string | number = "?";
             if (rawJson.map_point_history) {
-                let totalFloors = rawJson.map_point_history.reduce((acc, act) => acc + act.length, 0);
+                let totalFloors = rawJson.map_point_history.reduce((acc: number, act: any[]) => acc + act.length, 0);
                 runLengthStr = totalFloors;
             }
 
@@ -90,11 +91,11 @@ function App() {
             const characterName = getCharacterName(characterId);
 
             const metadata = {
-                relics: relicsArray.map(r => r.id.replace('RELIC.', '').toLowerCase()),
+                relics: relicsArray.map((r: any) => r.id.replace('RELIC.', '').toLowerCase()),
                 floor: runLengthStr,
                 ascension: ascension,
                 outcome: outcome,
-                characterName: characterName
+                characterName: characterName || undefined
             };
 
             return {
@@ -141,7 +142,7 @@ function App() {
                                 </button>
                             </div>
                         )}
-                        <DeckVisualizer cards={runs[selectedRunId].cards} meta={runs[selectedRunId].meta} />
+                        <DeckVisualizer cards={runs[selectedRunId].cards!} meta={runs[selectedRunId].meta} />
                     </div>
                 )}
             </main>

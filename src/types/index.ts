@@ -33,6 +33,6 @@ export interface ImageExportMeta {
     characterName?: string;
     ascension?: string | number;
     outcome?: string;
-    floor?: number;
+    floor?: string | number;
     relics?: string[];
 }

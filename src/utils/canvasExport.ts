@@ -39,12 +39,10 @@ export async function generateDeckImage(cards: CardData[], meta?: ImageExportMet
     let bestDiff = Infinity;
     let bestCalculatedHeight = 0;
     let bestCardSize = 0;
-    let bestRows = 0;
 
     if (numCards === 0) {
         bestCols = 1;
         bestCardSize = availableWidth;
-        bestRows = 1;
         bestCalculatedHeight = availableWidth;
     } else {
         // Test column counts to find the one that yields a height closest to 9:16 (1920px)
@@ -64,7 +62,6 @@ export async function generateDeckImage(cards: CardData[], meta?: ImageExportMet
                 bestDiff = diff;
                 bestCols = c;
                 bestCardSize = size;
-                bestRows = r;
                 bestCalculatedHeight = gridH;
             }
         }

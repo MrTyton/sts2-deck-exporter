@@ -1,8 +1,14 @@
-import React, { useState, useRef } from 'react';
-import { generateDeckImage } from '../utils/canvasExport.js';
+import { useState, useRef } from 'react';
+import { generateDeckImage } from '../utils/canvasExport';
+import type { CardData, ImageExportMeta } from '../types';
 
-export function DeckVisualizer({ cards, meta }) {
-    const exportRef = useRef(null);
+export interface DeckVisualizerProps {
+    cards: CardData[];
+    meta?: ImageExportMeta;
+}
+
+export function DeckVisualizer({ cards, meta }: DeckVisualizerProps) {
+    const exportRef = useRef<HTMLDivElement>(null);
     const [copyImageText, setCopyImageText] = useState('Copy Image');
     const [copyLinkText, setCopyLinkText] = useState('Copy Share Link');
 
@@ -86,8 +92,9 @@ export function DeckVisualizer({ cards, meta }) {
                                         alt={relic}
                                         style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}
                                         onError={(e) => {
-                                            e.target.onerror = null;
-                                            e.target.style.display = 'none';
+                                            const target = e.target as HTMLImageElement;
+                                            target.onerror = null;
+                                            target.style.display = 'none';
                                         }}
                                     />
                                 </div>
@@ -102,7 +109,7 @@ export function DeckVisualizer({ cards, meta }) {
                     gap: '24px',
                     padding: '1rem 0'
                 }}>
-                    {cards.map((card, index) => (
+                    {cards.map((card: CardData, index: number) => (
                         <div key={card.id + index} className="card-wrapper" style={{ position: 'relative', width: '100%', aspectRatio: '1/1', borderRadius: '12px', overflow: 'hidden' }}>
                             <img
                                 src={`/assets/portraits/${card.id}.webp`}
@@ -117,8 +124,9 @@ export function DeckVisualizer({ cards, meta }) {
                                 }}
                                 onError={(e) => {
                                     // Fallback for missing images
-                                    e.target.onerror = null;
-                                    e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><rect width="100%" height="100%" fill="%23191c24"/><text x="50%" y="50%" fill="%2390929c" font-family="sans-serif" font-size="14" text-anchor="middle" dominant-baseline="middle">Image Missing</text></svg>';
+                                    const target = e.target as HTMLImageElement;
+                                    target.onerror = null;
+                                    target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><rect width="100%" height="100%" fill="%23191c24"/><text x="50%" y="50%" fill="%2390929c" font-family="sans-serif" font-size="14" text-anchor="middle" dominant-baseline="middle">Image Missing</text></svg>';
                                 }}
                             />
                             {card.count > 1 && (

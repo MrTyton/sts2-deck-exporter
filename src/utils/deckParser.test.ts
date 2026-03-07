@@ -59,7 +59,7 @@ describe('parseDeckArray', () => {
         expect(result).toHaveLength(2); // One FIRE (count 2), one ICE (count 1)
         const fire = result.find(c => c.enchantment === 'FIRE');
         const ice = result.find(c => c.enchantment === 'ICE');
-        expect(fire.count).toBe(2);
-        expect(ice.count).toBe(1);
+        expect(fire!.count).toBe(2);
+        expect(ice!.count).toBe(1);
     });
 });
