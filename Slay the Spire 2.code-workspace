@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "STS2-Deck-Exporter",
+			"path": "."
+		},
+		{
+			"name": "Slay the Spire 2",
+			"path": "../../../../../Program Files (x86)/Steam/steamapps/common/Slay the Spire 2"
+		}
+	],
+	"settings": {}
+}

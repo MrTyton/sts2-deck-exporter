@@ -1,0 +1,175 @@
+import React, { useState, useRef } from 'react';
+import { toPng, toBlob } from 'html-to-image';
+
+export function DeckVisualizer({ cards, meta }) {
+    const gridRef = useRef(null);
+    const [copyImageText, setCopyImageText] = useState('Copy Image');
+    const [copyLinkText, setCopyLinkText] = useState('Copy Share Link');
+
+    const handleExport = async () => {
+        if (gridRef.current === null) return;
+        try {
+            const dataUrl = await toPng(gridRef.current, { cacheBust: true, backgroundColor: '#0d0f12' });
+            const link = document.createElement('a');
+            link.download = 'sts2-deck.png';
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error('Failed to export image', err);
+        }
+    };
+
+    const handleCopyImage = async () => {
+        if (gridRef.current === null) return;
+        try {
+            const blob = await toBlob(gridRef.current, { cacheBust: true, backgroundColor: '#0d0f12' });
+            await navigator.clipboard.write([
+                new ClipboardItem({ [blob.type]: blob })
+            ]);
+            setCopyImageText('Copied!');
+            setTimeout(() => setCopyImageText('Copy Image'), 2000);
+        } catch (err) {
+            console.error('Failed to copy image', err);
+            setCopyImageText('Failed');
+            setTimeout(() => setCopyImageText('Copy Image'), 2000);
+        }
+    };
+
+    const copyUrl = async () => {
+        try {
+            await navigator.clipboard.writeText(window.location.href);
+            setCopyLinkText('Copied!');
+            setTimeout(() => setCopyLinkText('Copy Share Link'), 2000);
+        } catch (err) {
+            console.error('Failed to copy link', err);
+            setCopyLinkText('Failed');
+            setTimeout(() => setCopyLinkText('Copy Share Link'), 2000);
+        }
+    };
+
+    return (
+        <div className="deck-visualizer">
+            <div className="deck-header glass-panel" style={{ padding: '1.5rem 2rem', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                    <h2 style={{ color: 'var(--accent-color)', marginBottom: '0.25rem' }}>Your Run Deck</h2>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.75rem' }}>{cards.reduce((acc, c) => acc + c.count, 0)} cards total</p>
+
+                    {meta && (
+                        <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                            <span style={{ background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                <strong>A{meta.ascension}</strong> • {meta.outcome}
+                            </span>
+                            <span style={{ background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                Floor <strong>{meta.floor}</strong>
+                            </span>
+                        </div>
+                    )}
+                </div>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <button className="btn-secondary" onClick={copyUrl}>{copyLinkText}</button>
+                    <button className="btn-primary" onClick={handleCopyImage}>{copyImageText}</button>
+                    <button className="btn-primary" onClick={handleExport}>Download Image</button>
+                    <button className="btn-secondary" onClick={() => window.location.assign(window.location.pathname)}>Reset</button>
+                </div>
+            </div>
+
+            {meta && meta.relics && meta.relics.length > 0 && (
+                <div className="relics-panel glass-panel" style={{ padding: '1rem 2rem', marginBottom: '2rem' }}>
+                    <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>Relics</h3>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                        {meta.relics.map((relic, idx) => (
+                            <div key={idx} style={{ width: '56px', height: '56px', background: 'rgba(0,0,0,0.4)', borderRadius: '8px', padding: '4px', border: '1px solid var(--surface-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={relic.replace(/_/g, ' ')}>
+                                <img
+                                    src={`/assets/relics/${relic}.webp`}
+                                    alt={relic}
+                                    style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.style.display = 'none';
+                                    }}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <div ref={gridRef} className="cards-grid" style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                gap: '24px',
+                padding: '1rem 0'
+            }}>
+                {cards.map((card, index) => (
+                    <div key={card.id + index} className="card-wrapper" style={{ position: 'relative', width: '100%', aspectRatio: '1/1', borderRadius: '12px', overflow: 'hidden' }}>
+                        <img
+                            src={`/assets/portraits/${card.id}.webp`}
+                            alt={card.id}
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                borderRadius: '12px',
+                                border: '1px solid var(--surface-border)',
+                                backgroundColor: 'var(--surface-color)'
+                            }}
+                            onError={(e) => {
+                                // Fallback for missing images
+                                e.target.onerror = null;
+                                e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><rect width="100%" height="100%" fill="%23191c24"/><text x="50%" y="50%" fill="%2390929c" font-family="sans-serif" font-size="14" text-anchor="middle" dominant-baseline="middle">Image Missing</text></svg>';
+                            }}
+                        />
+                        {card.count > 1 && (
+                            <div style={{
+                                position: 'absolute',
+                                bottom: '8px',
+                                right: '8px',
+                                background: 'rgba(0,0,0,0.8)',
+                                color: 'var(--accent-color)',
+                                padding: '4px 12px',
+                                borderRadius: '16px',
+                                fontWeight: 'bold',
+                                border: '1px solid rgba(214, 178, 81, 0.5)',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+                            }}>
+                                x{card.count}
+                            </div>
+                        )}
+                        <div style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            background: 'linear-gradient(transparent, rgba(0,0,0,0.9))',
+                            padding: '24px 12px 12px',
+                            pointerEvents: 'none'
+                        }}>
+                            <p style={{
+                                color: 'white',
+                                margin: 0,
+                                fontSize: '0.9rem',
+                                fontWeight: 600,
+                                textTransform: 'capitalize',
+                                textShadow: '0 2px 4px rgba(0,0,0,0.8)'
+                            }}>
+                                {card.id.replace(/_/g, ' ')} {card.upgraded ? (card.upgrades > 1 ? `+${card.upgrades}` : '+') : ''}
+                            </p>
+                            {card.enchantment && (
+                                <p style={{
+                                    color: 'var(--accent-color)',
+                                    margin: 0,
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    textShadow: '0 2px 4px rgba(0,0,0,1)'
+                                }}>
+                                    {card.enchantment}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
