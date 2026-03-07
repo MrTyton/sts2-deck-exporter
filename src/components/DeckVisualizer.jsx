@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { toPng, toBlob } from 'html-to-image';
+import { generateDeckImage } from '../utils/canvasExport.js';
 
 export function DeckVisualizer({ cards, meta }) {
     const exportRef = useRef(null);
@@ -7,9 +7,9 @@ export function DeckVisualizer({ cards, meta }) {
     const [copyLinkText, setCopyLinkText] = useState('Copy Share Link');
 
     const handleExport = async () => {
-        if (exportRef.current === null) return;
         try {
-            const dataUrl = await toPng(exportRef.current, { cacheBust: true, backgroundColor: '#0d0f12' });
+            const canvas = await generateDeckImage(cards, meta);
+            const dataUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
             link.download = 'sts2-deck.png';
             link.href = dataUrl;
@@ -20,14 +20,16 @@ export function DeckVisualizer({ cards, meta }) {
     };
 
     const handleCopyImage = async () => {
-        if (exportRef.current === null) return;
         try {
-            const blob = await toBlob(exportRef.current, { cacheBust: true, backgroundColor: '#0d0f12' });
-            await navigator.clipboard.write([
-                new ClipboardItem({ [blob.type]: blob })
-            ]);
-            setCopyImageText('Copied!');
-            setTimeout(() => setCopyImageText('Copy Image'), 2000);
+            const canvas = await generateDeckImage(cards, meta);
+            canvas.toBlob(async (blob) => {
+                if (!blob) throw new Error("Canvas toBlob failed");
+                await navigator.clipboard.write([
+                    new ClipboardItem({ [blob.type]: blob })
+                ]);
+                setCopyImageText('Copied!');
+                setTimeout(() => setCopyImageText('Copy Image'), 2000);
+            }, 'image/png');
         } catch (err) {
             console.error('Failed to copy image', err);
             setCopyImageText('Failed');
@@ -122,7 +124,7 @@ export function DeckVisualizer({ cards, meta }) {
                             {card.count > 1 && (
                                 <div style={{
                                     position: 'absolute',
-                                    bottom: '8px',
+                                    top: '8px',
                                     right: '8px',
                                     background: 'rgba(0,0,0,0.8)',
                                     color: 'var(--accent-color)',
@@ -141,7 +143,7 @@ export function DeckVisualizer({ cards, meta }) {
                                 left: 0,
                                 right: 0,
                                 background: 'linear-gradient(transparent, rgba(0,0,0,0.9))',
-                                padding: '24px 12px 12px',
+                                padding: '32px 12px 12px',
                                 pointerEvents: 'none'
                             }}>
                                 <p style={{
@@ -150,7 +152,11 @@ export function DeckVisualizer({ cards, meta }) {
                                     fontSize: '0.9rem',
                                     fontWeight: 600,
                                     textTransform: 'capitalize',
-                                    textShadow: '0 2px 4px rgba(0,0,0,0.8)'
+                                    textShadow: '0 2px 4px rgba(0,0,0,0.8)',
+                                    lineHeight: '1.2',
+                                    overflowWrap: 'break-word',
+                                    wordWrap: 'break-word',
+                                    whiteSpace: 'normal',
                                 }}>
                                     {card.id.replace(/_/g, ' ')} {card.upgraded ? (card.upgrades > 1 ? `+${card.upgrades}` : '+') : ''}
                                 </p>

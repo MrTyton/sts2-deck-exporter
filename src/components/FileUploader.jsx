@@ -21,24 +21,36 @@ export function FileUploader({ onDeckLoaded }) {
         setIsDragging(false);
     }, []);
 
-    const processFile = (file) => {
+    const processFiles = async (files) => {
         setError(null);
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const json = JSON.parse(e.target.result);
-                if (!json.players || !json.players[0] || !json.players[0].deck) {
-                    throw new Error('Invalid save file format: Could not find deck array.');
-                }
+        if (!files || files.length === 0) return;
 
-                // Pass the whole JSON so App can extract relics and run metadata
-                onDeckLoaded(json);
-            } catch (err) {
-                setError('Failed to parse file: ' + err.message);
-            }
-        };
-        reader.onerror = () => setError('Error reading the file.');
-        reader.readAsText(file);
+        const readPromises = Array.from(files).map(file => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const json = JSON.parse(e.target.result);
+                        if (!json.players || !json.players[0] || !json.players[0].deck) {
+                            reject(new Error(`Invalid format in ${file.name}`));
+                            return;
+                        }
+                        resolve(json);
+                    } catch (err) {
+                        reject(new Error(`Parse error in ${file.name}: ${err.message}`));
+                    }
+                };
+                reader.onerror = () => reject(new Error(`Error reading ${file.name}`));
+                reader.readAsText(file);
+            });
+        });
+
+        try {
+            const results = await Promise.all(readPromises);
+            onDeckLoaded(results);
+        } catch (err) {
+            setError(err.message);
+        }
     };
 
     const handleDrop = useCallback((e) => {
@@ -46,13 +58,13 @@ export function FileUploader({ onDeckLoaded }) {
         e.stopPropagation();
         setIsDragging(false);
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            processFile(e.dataTransfer.files[0]);
+            processFiles(e.dataTransfer.files);
         }
     }, [onDeckLoaded]);
 
     const handleFileInput = (e) => {
         if (e.target.files && e.target.files.length > 0) {
-            processFile(e.target.files[0]);
+            processFiles(e.target.files);
         }
     };
 
@@ -76,18 +88,19 @@ export function FileUploader({ onDeckLoaded }) {
             <input
                 id="file-upload"
                 type="file"
+                multiple
                 accept=".run,.backup,.save"
                 style={{ display: 'none' }}
                 onChange={handleFileInput}
             />
             <div style={{ pointerEvents: 'none' }}>
                 <h2 style={{ marginBottom: '1rem', color: isDragging ? 'var(--accent-color)' : 'var(--text-primary)' }}>
-                    Drop your Save/Run File Here
+                    Drop Save/Run Files Here
                 </h2>
                 <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-                    Accepts .run, current_run.save.backup files
+                    Select multiple .run or .backup files to view them all at once
                 </p>
-                <button className="btn-primary" style={{ pointerEvents: 'none' }}>Select File</button>
+                <button className="btn-primary" style={{ pointerEvents: 'none' }}>Select Files</button>
             </div>
             {error && <div style={{ color: '#ff6b6b', marginTop: '1.5rem', fontWeight: 500 }}>{error}</div>}
         </div>

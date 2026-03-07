@@ -1,12 +1,15 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { FileUploader } from './components/FileUploader.jsx'
 import { DeckVisualizer } from './components/DeckVisualizer.jsx'
+import { Gallery } from './components/Gallery.jsx'
 import { parseDeckArray } from './utils/deckParser.js'
 import { getCharacterName } from './utils/characterMapper.js'
 import * as lzString from 'lz-string'
 
 function App() {
-    const [runData, setRunData] = useState(null)
+    const [runs, setRuns] = useState([])
+    const [selectedRunId, setSelectedRunId] = useState(null)
+    const [isSharedView, setIsSharedView] = useState(false)
 
     // On mount, check if there's a deck compressed in the URL hash
     useEffect(() => {
@@ -19,16 +22,18 @@ function App() {
                     const parsed = JSON.parse(decompressed)
                     // Backwards compatibility if it's just an array
                     if (Array.isArray(parsed)) {
-                        setRunData({
+                        setRuns([{
                             cards: parseDeckArray(parsed),
                             meta: null
-                        })
+                        }])
                     } else {
-                        setRunData({
+                        setRuns([{
                             cards: parseDeckArray(parsed.deck),
                             meta: parsed.meta
-                        })
+                        }])
                     }
+                    setSelectedRunId(0) // view it directly
+                    setIsSharedView(true)
                 }
             } catch (err) {
                 console.error("Failed to decode run data from URL:", err)
@@ -36,48 +41,63 @@ function App() {
         }
     }, [])
 
-    const handleDeckLoaded = useCallback((rawJson) => {
-        const deckArray = rawJson.players[0].deck;
-        const relicsArray = rawJson.players[0].relics || [];
-
-        let runLengthStr = "?";
-        if (rawJson.map_point_history) {
-            let totalFloors = rawJson.map_point_history.reduce((acc, act) => acc + act.length, 0);
-            runLengthStr = totalFloors;
+    // Update share URL whenever a specific run is selected
+    useEffect(() => {
+        if (selectedRunId !== null && runs[selectedRunId]) {
+            const run = runs[selectedRunId]
+            try {
+                const minimalDeck = run.cards.map(c => ({
+                    id: c.id,
+                    upgrades: c.current_upgrade_level || c.upgrades || 0,
+                    enchantmentId: c.enchantment ? c.enchantment.id : null
+                }))
+                const payload = { deck: minimalDeck, meta: run.meta }
+                const compressed = lzString.compressToEncodedURIComponent(JSON.stringify(payload))
+                window.history.replaceState(null, null, `#deck=${compressed}`)
+            } catch (err) {
+                console.warn("Could not generate share URL", err)
+            }
+        } else {
+            // clear hash if back in gallery
+            window.history.replaceState(null, null, ' ')
         }
+    }, [selectedRunId, runs])
 
-        const ascension = rawJson.ascension || 0;
-        const outcome = rawJson.win ? "Victory" : (rawJson.was_abandoned ? "Abandoned" : "Defeat");
+    const handleDeckLoaded = useCallback((rawJsons) => {
+        setIsSharedView(false);
+        const jsonArray = Array.isArray(rawJsons) ? rawJsons : [rawJsons];
 
-        const characterId = rawJson.players[0].character;
-        const characterName = getCharacterName(characterId);
+        const newRuns = jsonArray.map(rawJson => {
+            const deckArray = rawJson.players[0].deck;
+            const relicsArray = rawJson.players[0].relics || [];
 
-        const metadata = {
-            relics: relicsArray.map(r => r.id.replace('RELIC.', '').toLowerCase()),
-            floor: runLengthStr,
-            ascension: ascension,
-            outcome: outcome,
-            characterName: characterName
-        };
+            let runLengthStr = "?";
+            if (rawJson.map_point_history) {
+                let totalFloors = rawJson.map_point_history.reduce((acc, act) => acc + act.length, 0);
+                runLengthStr = totalFloors;
+            }
 
-        // Generate shareable URL
-        try {
-            const minimalDeck = deckArray.map(c => ({
-                id: c.id,
-                upgrades: c.current_upgrade_level || 0,
-                enchantmentId: c.enchantment ? c.enchantment.id : null
-            }))
-            const payload = { deck: minimalDeck, meta: metadata }
-            const compressed = lzString.compressToEncodedURIComponent(JSON.stringify(payload))
-            window.history.replaceState(null, null, `#deck=${compressed}`)
-        } catch (err) {
-            console.warn("Could not generate share URL", err)
-        }
+            const ascension = rawJson.ascension || 0;
+            const outcome = rawJson.win ? "Victory" : (rawJson.was_abandoned ? "Abandoned" : "Defeat");
 
-        setRunData({
-            cards: parseDeckArray(deckArray),
-            meta: metadata
-        })
+            const characterId = rawJson.players[0].character;
+            const characterName = getCharacterName(characterId);
+
+            const metadata = {
+                relics: relicsArray.map(r => r.id.replace('RELIC.', '').toLowerCase()),
+                floor: runLengthStr,
+                ascension: ascension,
+                outcome: outcome,
+                characterName: characterName
+            };
+
+            return {
+                cards: parseDeckArray(deckArray),
+                meta: metadata
+            };
+        });
+
+        setRuns(prev => [...prev, ...newRuns]);
     }, [])
 
     return (
@@ -88,10 +108,30 @@ function App() {
             </header>
 
             <main>
-                {!runData ? (
+                {runs.length === 0 ? (
                     <FileUploader onDeckLoaded={handleDeckLoaded} />
+                ) : selectedRunId === null ? (
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
+                            <button className="btn-secondary" onClick={() => setRuns([])}>Clear All Runs</button>
+                        </div>
+                        <Gallery runs={runs} onSelectRun={setSelectedRunId} />
+                        {/* We could also put the uploader below the gallery so they can add more, but let's keep it simple for now */}
+                    </div>
                 ) : (
-                    <DeckVisualizer cards={runData.cards} meta={runData.meta} />
+                    <div>
+                        {!isSharedView && runs.length >= 1 && (
+                            <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '10px' }}>
+                                <button
+                                    className="btn-secondary"
+                                    onClick={() => setSelectedRunId(null)}
+                                >
+                                    ← Back to Gallery
+                                </button>
+                            </div>
+                        )}
+                        <DeckVisualizer cards={runs[selectedRunId].cards} meta={runs[selectedRunId].meta} />
+                    </div>
                 )}
             </main>
         </div>
