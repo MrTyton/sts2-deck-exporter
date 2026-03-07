@@ -128,7 +128,7 @@ export async function generateDeckImage(cards: CardData[], meta?: ImageExportMet
                 relicY += relicSize + relicGap;
             }
             try {
-                const img = await loadImage(`/assets/relics/${relic}.webp`);
+                const img = await loadImage(`${import.meta.env.BASE_URL}assets/relics/${relic}.webp`);
                 if (img) {
                     ctx.drawImage(img, relicX, relicY, relicSize, relicSize);
                 }
@@ -160,7 +160,7 @@ export async function generateDeckImage(cards: CardData[], meta?: ImageExportMet
 
     // Draw renderCards
     let cardPromises = renderCards.map((card, index) => {
-        return loadImage(`/assets/portraits/${card.id}.webp`).then(img => ({ card, img, index }));
+        return loadImage(`${import.meta.env.BASE_URL}assets/portraits/${card.id}.webp`).then(img => ({ card, img, index }));
     });
 
     const cardResults = await Promise.all(cardPromises);

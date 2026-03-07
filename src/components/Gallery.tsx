@@ -185,7 +185,7 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
                                     {bgCards.map((card, i) => (
                                         <img
                                             key={i}
-                                            src={`/assets/portraits/${card.id}.webp`}
+                                            src={`${import.meta.env.BASE_URL}assets/portraits/${card.id}.webp`}
                                             alt=""
                                             style={{
                                                 flex: 1,

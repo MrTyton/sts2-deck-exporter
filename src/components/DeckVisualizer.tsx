@@ -89,7 +89,7 @@ export function DeckVisualizer({ cards, meta }: DeckVisualizerProps) {
                             {meta.relics.map((relic, idx) => (
                                 <div key={idx} style={{ width: '56px', height: '56px', background: 'rgba(0,0,0,0.4)', borderRadius: '8px', padding: '4px', border: '1px solid var(--surface-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={relic.replace(/_/g, ' ')}>
                                     <img
-                                        src={`/assets/relics/${relic}.webp`}
+                                        src={`${import.meta.env.BASE_URL}assets/relics/${relic}.webp`}
                                         alt={relic}
                                         style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}
                                         onError={(e) => {
@@ -113,7 +113,7 @@ export function DeckVisualizer({ cards, meta }: DeckVisualizerProps) {
                     {cards.map((card: CardData, index: number) => (
                         <div key={card.id + index} className="card-wrapper" style={{ position: 'relative', width: '100%', aspectRatio: '1/1', borderRadius: '12px', overflow: 'hidden' }}>
                             <img
-                                src={`/assets/portraits/${card.id}.webp`}
+                                src={`${import.meta.env.BASE_URL}assets/portraits/${card.id}.webp`}
                                 alt={card.id}
                                 style={{
                                     width: '100%',
