@@ -1,6 +1,8 @@
-export async function generateDeckImage(cards, meta) {
+import type { CardData, ImageExportMeta } from '../types';
+
+export async function generateDeckImage(cards: CardData[], meta?: ImageExportMeta): Promise<HTMLCanvasElement> {
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 
     // Sort all cards by count descending, then by id
     let renderCards = [...cards];
@@ -23,7 +25,7 @@ export async function generateDeckImage(cards, meta) {
     if (hasRelics) {
         const availableWidth = canvasWidth - (padding * 2);
         const relicsPerRow = Math.floor((availableWidth + relicGap) / (relicSize + relicGap));
-        const relicRows = Math.ceil(meta.relics.length / relicsPerRow);
+        const relicRows = Math.ceil(meta.relics!.length / relicsPerRow);
         relicsHeight = 80 + (relicRows * (relicSize + relicGap)); // 80px for "RELICS" heading and spacing
     }
 
@@ -70,7 +72,7 @@ export async function generateDeckImage(cards, meta) {
 
     const columns = bestCols;
     const cardSize = bestCardSize;
-    const rows = bestRows;
+    // rows omitted since it's unread
     const gridContentWidth = columns * cardSize + (columns - 1) * gap;
     const calculatedHeight = Math.max(bestCalculatedHeight, cardSize);
 
@@ -120,7 +122,7 @@ export async function generateDeckImage(cards, meta) {
         let relicY = padding + 270;
         const availableWidth = canvasWidth - (padding * 2);
 
-        for (const relic of meta.relics) {
+        for (const relic of meta.relics!) {
             if (relicX + relicSize > padding + availableWidth) {
                 relicX = padding;
                 relicY += relicSize + relicGap;
@@ -136,7 +138,7 @@ export async function generateDeckImage(cards, meta) {
     }
 
     // Load function
-    function loadImage(src) {
+    function loadImage(src: string): Promise<HTMLImageElement | null> {
         return new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = 'anonymous';
@@ -201,7 +203,7 @@ export async function generateDeckImage(cards, meta) {
         const maxWidth = cardSize - 32;
         const words = cardTitle.split(' ');
         let line = '';
-        let lines = [];
+        let lines: string[] = [];
 
         for (let n = 0; n < words.length; n++) {
             const testLine = line + words[n] + ' ';

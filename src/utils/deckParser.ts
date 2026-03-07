@@ -1,7 +1,9 @@
-export function parseDeckArray(rawDeckArray) {
+import type { CardData, RawCardData } from '../types';
+
+export function parseDeckArray(rawDeckArray: RawCardData[]): CardData[] {
     // rawDeckArray looks like: [{ id: "CARD.STRIKE_SILENT", floor_added_to_deck: 1 }, ...]
-    const cardCounts = {};
-    const cards = [];
+    const cardCounts: Record<string, CardData> = {};
+    const cards: CardData[] = [];
 
     rawDeckArray.forEach(cardData => {
         let id = cardData.id;
@@ -27,7 +29,7 @@ export function parseDeckArray(rawDeckArray) {
         if (cardCounts[uniqueKey]) {
             cardCounts[uniqueKey].count += 1;
         } else {
-            const newCard = {
+            const newCard: CardData = {
                 id: id,
                 count: 1,
                 upgraded: upgrades > 0 || id.includes('+'),
