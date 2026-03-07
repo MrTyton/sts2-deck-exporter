@@ -31,27 +31,54 @@ export async function generateDeckImage(cards, meta) {
     const availableWidth = canvasWidth - (padding * 2);
 
     const numCards = renderCards.length;
-    let columns = 5;
-    if (numCards === 0) columns = 1;
-    else if (numCards <= 9) columns = 3;
-    else if (numCards <= 16) columns = 4;
-    else columns = 5;
+    const targetHeight = 1920;
 
-    columns = Math.min(columns, Math.max(1, numCards));
+    let bestCols = 5;
+    let bestDiff = Infinity;
+    let bestCalculatedHeight = 0;
+    let bestCardSize = 0;
+    let bestRows = 0;
 
-    const cardSize = Math.floor((availableWidth - (columns - 1) * gap) / columns);
-    const rows = Math.ceil(numCards / columns);
+    if (numCards === 0) {
+        bestCols = 1;
+        bestCardSize = availableWidth;
+        bestRows = 1;
+        bestCalculatedHeight = availableWidth;
+    } else {
+        // Test column counts to find the one that yields a height closest to 9:16 (1920px)
+        const actualMinCols = numCards < 3 ? numCards : 3;
+        const maxCols = Math.min(7, numCards); // Don't use more than 7 columns to keep text readable
 
+        for (let c = actualMinCols; c <= maxCols; c++) {
+            const size = Math.floor((availableWidth - (c - 1) * gap) / c);
+            const r = Math.ceil(numCards / c);
+            const gridH = r * size + (r - 1) * gap;
+
+            // Expected total height if we use this column count
+            const expectedTotalHeight = headerHeight + gridH + (padding * 2);
+            const diff = Math.abs(expectedTotalHeight - targetHeight);
+
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                bestCols = c;
+                bestCardSize = size;
+                bestRows = r;
+                bestCalculatedHeight = gridH;
+            }
+        }
+    }
+
+    const columns = bestCols;
+    const cardSize = bestCardSize;
+    const rows = bestRows;
     const gridContentWidth = columns * cardSize + (columns - 1) * gap;
-    const gridContentHeight = rows * cardSize + (rows - 1) * gap;
+    const calculatedHeight = Math.max(bestCalculatedHeight, cardSize);
 
-    const calculatedHeight = Math.max(gridContentHeight, cardSize); // Avoid zero height grid
-
-    // Dynamic height based on content
+    // Dynamic height based on content, but optimized to naturally hit targetHeight
     let canvasHeight = headerHeight + calculatedHeight + (padding * 2);
 
-    // Keep some minimum height for aesthetic if deck is very small
-    const minCanvasHeight = 1200;
+    // Keep a reasonable minimum height if the deck is extremely small
+    const minCanvasHeight = 1080; // 1:1 image layout floor
     canvasHeight = Math.max(canvasHeight, minCanvasHeight);
 
     // Center the grid within the available space
