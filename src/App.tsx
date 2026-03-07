@@ -146,6 +146,9 @@ function App() {
                                     Buy Slay the Spire 2 on Steam
                                 </a>
                             </p>
+                            <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                Have a bug or feature request? <a href="https://github.com/MrTyton/sts2-deck-exporter/issues" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-color)', textDecoration: 'underline' }}>Submit an issue on GitHub</a>.
+                            </p>
                         </div>
                     </div>
                 </div>
