@@ -136,6 +136,16 @@ function App() {
                             <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                                 <strong>Disclaimer:</strong> This is a fan-made project and has no association with MegaCrit.
                             </p>
+                            <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>
+                                <a
+                                    href="https://store.steampowered.com/app/2868840/Slay_the_Spire_2/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: 'var(--accent-color)', textDecoration: 'underline' }}
+                                >
+                                    Buy Slay the Spire 2 on Steam
+                                </a>
+                            </p>
                         </div>
                     </div>
                 </div>
