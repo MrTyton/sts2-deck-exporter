@@ -17,7 +17,10 @@ export function parseDeckArray(rawDeckArray) {
         const upgrades = cardData.current_upgrade_level || cardData.upgrades || 0;
 
         // Check for enchantments
-        const enchantment = cardData.enchantment ? cardData.enchantment.id.replace("ENCHANTMENT.", "") : cardData.enchantmentId || null;
+        let enchantment = cardData.enchantment ? cardData.enchantment.id : (cardData.enchantmentId || null);
+        if (enchantment && enchantment.startsWith("ENCHANTMENT.")) {
+            enchantment = enchantment.substring(12);
+        }
 
         const uniqueKey = `${id}_${upgrades}_${enchantment || 'none'}`;
 
