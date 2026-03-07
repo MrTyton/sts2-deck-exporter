@@ -104,6 +104,6 @@ describe('generateDeckImage', () => {
         const canvas = await generateDeckImage(cards, undefined);
         const ctx: any = canvas.getContext('2d');
 
-        expect(ctx.fillText).toHaveBeenCalledWith('10 cards total', 60, 180);
+        expect(ctx.fillText).toHaveBeenCalledWith('10 cards', 60, 180);
     });
 });

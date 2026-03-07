@@ -37,7 +37,7 @@ describe('DeckVisualizer', () => {
     it('renders the character name, total cards, ascension, and outcome correctly', () => {
         render(<DeckVisualizer cards={mockCards} meta={mockMeta} />);
         expect(screen.getByText('The Ironclad')).toBeInTheDocument();
-        expect(screen.getByText('5 cards total')).toBeInTheDocument();
+        expect(screen.getByText('5 cards')).toBeInTheDocument();
         expect(screen.getByText(/A20/)).toBeInTheDocument();
         expect(screen.getByText(/Victory/)).toBeInTheDocument();
         expect(screen.getByText(/51/)).toBeInTheDocument();

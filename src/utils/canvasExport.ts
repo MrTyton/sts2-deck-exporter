@@ -101,7 +101,7 @@ export async function generateDeckImage(cards: CardData[], meta?: ImageExportMet
     ctx.fillStyle = '#90929c'; // text-secondary
     ctx.font = '32px sans-serif';
     const totalCards = cards.reduce((acc, c) => acc + c.count, 0);
-    ctx.fillText(`${totalCards} cards total`, padding, padding + 120);
+    ctx.fillText(`${totalCards} cards`, padding, padding + 120);
 
     if (meta) {
         ctx.fillStyle = '#ebecf0'; // text-primary

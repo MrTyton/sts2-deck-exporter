@@ -68,7 +68,7 @@ export function DeckVisualizer({ cards, meta }: DeckVisualizerProps) {
             <div ref={exportRef} className="export-container" style={{ backgroundColor: '#0d0f12', padding: '2rem', borderRadius: '16px' }}>
                 <div className="deck-header" style={{ marginBottom: '2rem' }}>
                     <h2 style={{ color: 'var(--accent-color)', marginBottom: '0.25rem' }}>{meta?.characterName || 'Your Run Deck'}</h2>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.75rem' }}>{cards.reduce((acc, c) => acc + c.count, 0)} cards total</p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.75rem' }}>{cards.reduce((acc, c) => acc + c.count, 0)} cards</p>
 
                     {meta && (
                         <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
