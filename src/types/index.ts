@@ -13,6 +13,7 @@ export interface RawCardData {
     upgrades?: number;
     enchantment?: { id: string };
     enchantmentId?: string;
+    count?: number;
 }
 
 export interface RunData {

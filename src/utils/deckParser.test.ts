@@ -62,4 +62,19 @@ describe('parseDeckArray', () => {
         expect(fire!.count).toBe(2);
         expect(ice!.count).toBe(1);
     });
+
+    it('should respect the count property if present', () => {
+        const rawDeck = [
+            { id: "STRIKE", count: 5 },
+            { id: "DEFEND", count: 3 },
+            { id: "STRIKE", count: 2 }
+        ];
+
+        const result = parseDeckArray(rawDeck);
+        expect(result).toHaveLength(2);
+        const strike = result.find(c => c.id === 'strike');
+        const defend = result.find(c => c.id === 'defend');
+        expect(strike!.count).toBe(7);
+        expect(defend!.count).toBe(3);
+    });
 });

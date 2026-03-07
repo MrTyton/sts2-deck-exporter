@@ -56,7 +56,8 @@ function App() {
                 const minimalDeck = run.cards ? run.cards.map(c => ({
                     id: c.id,
                     upgrades: c.upgrades || 0,
-                    enchantmentId: c.enchantment || null
+                    enchantmentId: c.enchantment || null,
+                    count: c.count
                 })) : [];
                 const payload = { deck: minimalDeck, meta: run.meta }
                 const compressed = lzString.compressToEncodedURIComponent(JSON.stringify(payload))

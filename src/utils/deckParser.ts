@@ -25,13 +25,14 @@ export function parseDeckArray(rawDeckArray: RawCardData[]): CardData[] {
         }
 
         const uniqueKey = `${id}_${upgrades}_${enchantment || 'none'}`;
+        const countToAdd = cardData.count || 1;
 
         if (cardCounts[uniqueKey]) {
-            cardCounts[uniqueKey].count += 1;
+            cardCounts[uniqueKey].count += countToAdd;
         } else {
             const newCard: CardData = {
                 id: id,
-                count: 1,
+                count: countToAdd,
                 upgraded: upgrades > 0 || id.includes('+'),
                 upgrades: upgrades,
                 enchantment: enchantment
