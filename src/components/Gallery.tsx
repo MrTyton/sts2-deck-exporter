@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import type { CardData, ImageExportMeta } from '../types';
 
 export interface RunData {
@@ -20,11 +20,11 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
     const ascensionFilter = filters.ascension || 'All';
     const sortBy = filters.sortBy || 'date_desc';
 
-    const updateFilter = (key: string, value: string) => {
+    const updateFilter = useCallback((key: string, value: string) => {
         if (onFilterChange) {
             onFilterChange({ ...filters, [key]: value });
         }
-    };
+    }, [filters, onFilterChange]);
 
     const uniqueCharacters = useMemo(() => {
         const chars = new Set(runs.map(r => r.meta?.characterName || 'Unknown'));

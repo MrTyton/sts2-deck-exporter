@@ -1,6 +1,8 @@
 import type { CardData, ImageExportMeta } from '../types';
 import { formatCardName } from './cardUtils';
 
+const imageCache = new Map<string, HTMLImageElement | null>();
+
 export async function generateDeckImage(cards: CardData[], meta?: ImageExportMeta): Promise<HTMLCanvasElement> {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
@@ -135,13 +137,23 @@ export async function generateDeckImage(cards: CardData[], meta?: ImageExportMet
         }
     }
 
-    // Load function
+    // Load function with simple caching
     function loadImage(src: string): Promise<HTMLImageElement | null> {
+        if (imageCache.has(src)) {
+            return Promise.resolve(imageCache.get(src) || null);
+        }
+
         return new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = 'anonymous';
-            img.onload = () => resolve(img);
-            img.onerror = () => resolve(null);
+            img.onload = () => {
+                imageCache.set(src, img);
+                resolve(img);
+            };
+            img.onerror = () => {
+                imageCache.set(src, null);
+                resolve(null);
+            };
             img.src = src;
         });
     }

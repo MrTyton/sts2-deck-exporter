@@ -5,7 +5,6 @@ import { Gallery } from './components/Gallery'
 import type { RunData } from './components/Gallery'
 import { parseDeckArray } from './utils/deckParser'
 import { getCharacterName } from './utils/characterMapper'
-import * as lzString from 'lz-string'
 
 function App() {
     const [isInfoOpen, setIsInfoOpen] = useState(false)
@@ -23,29 +22,31 @@ function App() {
     useEffect(() => {
         const hash = window.location.hash
         if (hash && hash.startsWith('#deck=')) {
-            try {
-                const compressed = hash.substring(6)
-                const decompressed = lzString.decompressFromEncodedURIComponent(compressed)
-                if (decompressed) {
-                    const parsed = JSON.parse(decompressed)
-                    // Backwards compatibility if it's just an array
-                    if (Array.isArray(parsed)) {
-                        setRuns([{
-                            cards: parseDeckArray(parsed),
-                            meta: undefined
-                        }])
-                    } else {
-                        setRuns([{
-                            cards: parseDeckArray(parsed.deck),
-                            meta: parsed.meta
-                        }])
+            import('lz-string').then(lzString => {
+                try {
+                    const compressed = hash.substring(6)
+                    const decompressed = lzString.decompressFromEncodedURIComponent(compressed)
+                    if (decompressed) {
+                        const parsed = JSON.parse(decompressed)
+                        // Backwards compatibility if it's just an array
+                        if (Array.isArray(parsed)) {
+                            setRuns([{
+                                cards: parseDeckArray(parsed),
+                                meta: undefined
+                            }])
+                        } else {
+                            setRuns([{
+                                cards: parseDeckArray(parsed.deck),
+                                meta: parsed.meta
+                            }])
+                        }
+                        setSelectedRunId(0) // view it directly
+                        setIsSharedView(true)
                     }
-                    setSelectedRunId(0) // view it directly
-                    setIsSharedView(true)
+                } catch (err) {
+                    console.error("Failed to decode run data from URL:", err)
                 }
-            } catch (err) {
-                console.error("Failed to decode run data from URL:", err)
-            }
+            }).catch(err => console.error("Failed to load lz-string:", err))
         }
     }, [])
 
@@ -53,19 +54,21 @@ function App() {
     useEffect(() => {
         if (selectedRunId !== null && runs[selectedRunId]) {
             const run = runs[selectedRunId]
-            try {
-                const minimalDeck = run.cards ? run.cards.map(c => ({
-                    id: c.id,
-                    upgrades: c.upgrades || 0,
-                    enchantmentId: c.enchantment || null,
-                    count: c.count
-                })) : [];
-                const payload = { deck: minimalDeck, meta: run.meta }
-                const compressed = lzString.compressToEncodedURIComponent(JSON.stringify(payload))
-                window.history.replaceState(null, '', `#deck=${compressed}`)
-            } catch (err) {
-                console.warn("Could not generate share URL", err)
-            }
+            import('lz-string').then(lzString => {
+                try {
+                    const minimalDeck = run.cards ? run.cards.map(c => ({
+                        id: c.id,
+                        upgrades: c.upgrades || 0,
+                        enchantmentId: c.enchantment || null,
+                        count: c.count
+                    })) : [];
+                    const payload = { deck: minimalDeck, meta: run.meta }
+                    const compressed = lzString.compressToEncodedURIComponent(JSON.stringify(payload))
+                    window.history.replaceState(null, '', `#deck=${compressed}`)
+                } catch (err) {
+                    console.warn("Could not generate share URL", err)
+                }
+            }).catch(err => console.warn("Failed to load lz-string:", err))
         } else {
             // clear hash if back in gallery
             window.history.replaceState(null, '', ' ')
