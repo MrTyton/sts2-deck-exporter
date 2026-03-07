@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { generateDeckImage } from '../utils/canvasExport';
+import { formatCardName } from '../utils/cardUtils';
 import type { CardData, ImageExportMeta } from '../types';
 
 export interface DeckVisualizerProps {
@@ -166,7 +167,7 @@ export function DeckVisualizer({ cards, meta }: DeckVisualizerProps) {
                                     wordWrap: 'break-word',
                                     whiteSpace: 'normal',
                                 }}>
-                                    {card.id.replace(/_/g, ' ')} {card.upgraded ? (card.upgrades > 1 ? `+${card.upgrades}` : '+') : ''}
+                                    {formatCardName(card.id)} {card.upgraded ? (card.upgrades > 1 ? `+${card.upgrades}` : '+') : ''}
                                 </p>
                                 {card.enchantment && (
                                     <p style={{

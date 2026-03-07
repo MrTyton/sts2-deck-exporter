@@ -1,4 +1,5 @@
 import type { CardData, ImageExportMeta } from '../types';
+import { formatCardName } from './cardUtils';
 
 export async function generateDeckImage(cards: CardData[], meta?: ImageExportMeta): Promise<HTMLCanvasElement> {
     const canvas = document.createElement('canvas');
@@ -188,7 +189,7 @@ export async function generateDeckImage(cards: CardData[], meta?: ImageExportMet
         ctx.fillStyle = '#ffffff';
         ctx.font = '600 24px sans-serif';
 
-        const name = card.id.replace(/_/g, ' ');
+        const name = formatCardName(card.id);
         const nameCapitalized = name.charAt(0).toUpperCase() + name.slice(1);
         const upg = card.upgraded ? (card.upgrades > 1 ? `+${card.upgrades}` : '+') : '';
         const cardTitle = `${nameCapitalized} ${upg}`.trim();
