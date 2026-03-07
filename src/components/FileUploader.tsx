@@ -103,7 +103,7 @@ export function FileUploader({ onDeckLoaded }: FileUploaderProps) {
                     Drop Save/Run Files Here
                 </h2>
                 <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-                    Select multiple .run or .backup files to view them all at once
+                    Select or drag and drop multiple .run or .backup files to view them all at once
                 </p>
                 <button className="btn-primary" style={{ pointerEvents: 'none' }}>Select Files</button>
             </div>

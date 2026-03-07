@@ -128,7 +128,7 @@ function App() {
                         <button className="modal-close" onClick={() => setIsInfoOpen(false)}>×</button>
                         <h2 style={{ marginBottom: '1rem', color: 'var(--accent-color)' }}>How to Use</h2>
                         <ul style={{ textAlign: 'left', marginBottom: '1.5rem', color: 'var(--text-primary)', lineHeight: '1.6', paddingLeft: '1.5rem' }}>
-                            <li>Locate your Slay the Spire 2 save files (usually in your Steam directory under <code>Steam\steamapps\common\Slay the Spire 2\saves</code>).</li>
+                            <li>Locate your Slay the Spire 2 save files (usually in <code>%AppData%\Roaming\SlayTheSpire2\steam\&lt;SteamID&gt;\&lt;profile&gt;\saves\history</code>).</li>
                             <li>Upload one or multiple <code>.run</code> or <code>.backup</code> files.</li>
                             <li>View your run history, deck composition, and generate shareable images of your deck!</li>
                         </ul>
