@@ -8,6 +8,7 @@ import { getCharacterName } from './utils/characterMapper'
 import * as lzString from 'lz-string'
 
 function App() {
+    const [isInfoOpen, setIsInfoOpen] = useState(false)
     const [runs, setRuns] = useState<RunData[]>([])
     const [selectedRunId, setSelectedRunId] = useState<number | null>(null)
     const [isSharedView, setIsSharedView] = useState(false)
@@ -109,7 +110,34 @@ function App() {
     }, [])
 
     return (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem', position: 'relative' }}>
+            <button
+                className="btn-info"
+                onClick={() => setIsInfoOpen(true)}
+                title="Information & Disclaimer"
+            >
+                i
+            </button>
+
+            {isInfoOpen && (
+                <div className="modal-overlay" onClick={() => setIsInfoOpen(false)}>
+                    <div className="modal-content glass-panel" onClick={e => e.stopPropagation()}>
+                        <button className="modal-close" onClick={() => setIsInfoOpen(false)}>×</button>
+                        <h2 style={{ marginBottom: '1rem', color: 'var(--accent-color)' }}>How to Use</h2>
+                        <ul style={{ textAlign: 'left', marginBottom: '1.5rem', color: 'var(--text-primary)', lineHeight: '1.6', paddingLeft: '1.5rem' }}>
+                            <li>Locate your Slay the Spire 2 save files (usually in your Steam directory under <code>Steam\steamapps\common\Slay the Spire 2\saves</code>).</li>
+                            <li>Upload one or multiple <code>.run</code> or <code>.backup</code> files.</li>
+                            <li>View your run history, deck composition, and generate shareable images of your deck!</li>
+                        </ul>
+                        <div style={{ padding: '1rem', backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px', borderLeft: '4px solid var(--text-secondary)' }}>
+                            <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                <strong>Disclaimer:</strong> This is a fan-made project and has no association with MegaCrit.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <header style={{ textAlign: 'center', marginBottom: '4rem', marginTop: '2rem' }}>
                 <h1 style={{ fontSize: '3rem', color: 'var(--accent-color)' }}>Slay the Spire 2</h1>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 400, color: 'var(--text-secondary)' }}>Deck Exporter</h2>
