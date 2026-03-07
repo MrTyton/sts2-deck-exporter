@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { FileUploader } from './components/FileUploader.jsx'
 import { DeckVisualizer } from './components/DeckVisualizer.jsx'
 import { parseDeckArray } from './utils/deckParser.js'
+import { getCharacterName } from './utils/characterMapper.js'
 import * as lzString from 'lz-string'
 
 function App() {
@@ -48,11 +49,15 @@ function App() {
         const ascension = rawJson.ascension || 0;
         const outcome = rawJson.win ? "Victory" : (rawJson.was_abandoned ? "Abandoned" : "Defeat");
 
+        const characterId = rawJson.players[0].character;
+        const characterName = getCharacterName(characterId);
+
         const metadata = {
             relics: relicsArray.map(r => r.id.replace('RELIC.', '').toLowerCase()),
             floor: runLengthStr,
             ascension: ascension,
-            outcome: outcome
+            outcome: outcome,
+            characterName: characterName
         };
 
         // Generate shareable URL
