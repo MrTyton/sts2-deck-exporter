@@ -10,6 +10,12 @@ function App() {
     const [runs, setRuns] = useState([])
     const [selectedRunId, setSelectedRunId] = useState(null)
     const [isSharedView, setIsSharedView] = useState(false)
+    const [galleryFilters, setGalleryFilters] = useState({
+        character: 'All',
+        outcome: 'All',
+        ascension: 'All',
+        sortBy: 'date_desc'
+    })
 
     // On mount, check if there's a deck compressed in the URL hash
     useEffect(() => {
@@ -115,7 +121,12 @@ function App() {
                         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
                             <button className="btn-secondary" onClick={() => setRuns([])}>Clear All Runs</button>
                         </div>
-                        <Gallery runs={runs} onSelectRun={setSelectedRunId} />
+                        <Gallery
+                            runs={runs}
+                            onSelectRun={setSelectedRunId}
+                            filters={galleryFilters}
+                            onFilterChange={setGalleryFilters}
+                        />
                         {/* We could also put the uploader below the gallery so they can add more, but let's keep it simple for now */}
                     </div>
                 ) : (

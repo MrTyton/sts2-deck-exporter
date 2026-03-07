@@ -10,7 +10,6 @@ export async function generateDeckImage(cards, meta) {
     });
 
     const canvasWidth = 1080;
-    const canvasHeight = 1920; // Standard 9:16 portrait aspect ratio
     const padding = 60;
     const gap = 24;
 
@@ -30,37 +29,34 @@ export async function generateDeckImage(cards, meta) {
 
     const headerHeight = baseHeaderHeight + relicsHeight;
     const availableWidth = canvasWidth - (padding * 2);
-    const availableHeight = canvasHeight - (padding * 2) - headerHeight;
 
     const numCards = renderCards.length;
-    let bestCols = 3;
-    let bestCardSize = 0;
+    let columns = 5;
+    if (numCards === 0) columns = 1;
+    else if (numCards <= 9) columns = 3;
+    else if (numCards <= 16) columns = 4;
+    else columns = 5;
 
-    for (let c = 2; c <= 8; c++) {
-        const r = Math.ceil(numCards / c);
+    columns = Math.min(columns, Math.max(1, numCards));
 
-        // maximum card size if width constrained
-        const widthSize = (availableWidth - (c - 1) * gap) / c;
-        // maximum card size if height constrained
-        const heightSize = (availableHeight - (r - 1) * gap) / r;
-
-        const size = Math.floor(Math.min(widthSize, heightSize));
-        if (size > bestCardSize) {
-            bestCardSize = size;
-            bestCols = c;
-        }
-    }
-
-    const columns = bestCols;
+    const cardSize = Math.floor((availableWidth - (columns - 1) * gap) / columns);
     const rows = Math.ceil(numCards / columns);
-    const cardSize = bestCardSize;
 
     const gridContentWidth = columns * cardSize + (columns - 1) * gap;
     const gridContentHeight = rows * cardSize + (rows - 1) * gap;
 
+    const calculatedHeight = Math.max(gridContentHeight, cardSize); // Avoid zero height grid
+
+    // Dynamic height based on content
+    let canvasHeight = headerHeight + calculatedHeight + (padding * 2);
+
+    // Keep some minimum height for aesthetic if deck is very small
+    const minCanvasHeight = 1200;
+    canvasHeight = Math.max(canvasHeight, minCanvasHeight);
+
     // Center the grid within the available space
     const startX = padding + Math.floor((availableWidth - gridContentWidth) / 2);
-    const startY = padding + headerHeight + Math.floor((availableHeight - gridContentHeight) / 2);
+    const startY = padding + headerHeight + (canvasHeight > (headerHeight + calculatedHeight + (padding * 2)) ? Math.floor((canvasHeight - (headerHeight + calculatedHeight + (padding * 2))) / 2) : 0);
 
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;

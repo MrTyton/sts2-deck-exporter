@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { expect, describe, it, vi } from 'vitest';
 import { Gallery } from './Gallery';
+
+const GalleryWrapper = (props) => {
+    const [filters, setFilters] = useState({});
+    return <Gallery {...props} filters={filters} onFilterChange={setFilters} />;
+};
 
 describe('Gallery', () => {
     const mockRuns = [
@@ -20,19 +25,19 @@ describe('Gallery', () => {
     ];
 
     it('renders empty state when no runs are provided', () => {
-        const { container } = render(<Gallery runs={[]} onSelectRun={() => { }} />);
+        const { container } = render(<GalleryWrapper runs={[]} onSelectRun={() => { }} />);
         expect(container.firstChild).toBeNull();
     });
 
     it('renders the given runs correctly', () => {
-        render(<Gallery runs={mockRuns} onSelectRun={() => { }} />);
+        render(<GalleryWrapper runs={mockRuns} onSelectRun={() => { }} />);
         expect(screen.getByRole('heading', { name: 'The Ironclad' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'The Silent' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'The Defect' })).toBeInTheDocument();
     });
 
     it('filters runs by character outcome', () => {
-        render(<Gallery runs={mockRuns} onSelectRun={() => { }} />);
+        render(<GalleryWrapper runs={mockRuns} onSelectRun={() => { }} />);
 
         // Change outcome filter to 'Victory'
         const outcomeSelect = screen.getAllByRole('combobox')[1];
@@ -44,7 +49,7 @@ describe('Gallery', () => {
     });
 
     it('filters runs by ascension', () => {
-        render(<Gallery runs={mockRuns} onSelectRun={() => { }} />);
+        render(<GalleryWrapper runs={mockRuns} onSelectRun={() => { }} />);
 
         // Change ascension filter to '20'
         const ascSelect = screen.getAllByRole('combobox')[2];
@@ -57,7 +62,7 @@ describe('Gallery', () => {
 
     it('calls onSelectRun when a tile is clicked', () => {
         const onSelectMock = vi.fn();
-        render(<Gallery runs={mockRuns} onSelectRun={onSelectMock} />);
+        render(<GalleryWrapper runs={mockRuns} onSelectRun={onSelectMock} />);
 
         const ironcladTile = screen.getByRole('heading', { name: 'The Ironclad' }).closest('.run-tile');
         fireEvent.click(ironcladTile);

@@ -1,10 +1,16 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 
-export function Gallery({ runs, onSelectRun }) {
-    const [characterFilter, setCharacterFilter] = useState('All');
-    const [outcomeFilter, setOutcomeFilter] = useState('All');
-    const [ascensionFilter, setAscensionFilter] = useState('All');
-    const [sortBy, setSortBy] = useState('date_desc');
+export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }) {
+    const characterFilter = filters.character || 'All';
+    const outcomeFilter = filters.outcome || 'All';
+    const ascensionFilter = filters.ascension || 'All';
+    const sortBy = filters.sortBy || 'date_desc';
+
+    const updateFilter = (key, value) => {
+        if (onFilterChange) {
+            onFilterChange({ ...filters, [key]: value });
+        }
+    };
 
     const uniqueCharacters = useMemo(() => {
         const chars = new Set(runs.map(r => r.meta?.characterName || 'Unknown'));
@@ -73,25 +79,25 @@ export function Gallery({ runs, onSelectRun }) {
             <div className="glass-panel" style={{ display: 'flex', gap: '15px', padding: '15px', borderRadius: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <label style={labelStyle}>Character</label>
-                    <select style={selectStyle} value={characterFilter} onChange={e => setCharacterFilter(e.target.value)}>
+                    <select style={selectStyle} value={characterFilter} onChange={e => updateFilter('character', e.target.value)}>
                         {uniqueCharacters.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <label style={labelStyle}>Outcome</label>
-                    <select style={selectStyle} value={outcomeFilter} onChange={e => setOutcomeFilter(e.target.value)}>
+                    <select style={selectStyle} value={outcomeFilter} onChange={e => updateFilter('outcome', e.target.value)}>
                         {uniqueOutcomes.map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <label style={labelStyle}>Ascension</label>
-                    <select style={selectStyle} value={ascensionFilter} onChange={e => setAscensionFilter(e.target.value)}>
+                    <select style={selectStyle} value={ascensionFilter} onChange={e => updateFilter('ascension', e.target.value)}>
                         {uniqueAscensions.map(a => <option key={a} value={a}>{a === 'All' ? 'All' : `A${a}`}</option>)}
                     </select>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: 'auto' }}>
                     <label style={labelStyle}>Sort By</label>
-                    <select style={selectStyle} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                    <select style={selectStyle} value={sortBy} onChange={e => updateFilter('sortBy', e.target.value)}>
                         <option value="date_desc">Newest First</option>
                         <option value="date_asc">Oldest First</option>
                         <option value="asc_desc">Ascension (High-Low)</option>

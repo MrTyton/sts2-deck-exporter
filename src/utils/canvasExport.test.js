@@ -63,7 +63,7 @@ describe('generateDeckImage', () => {
         const canvas = await generateDeckImage(cards, meta);
 
         expect(canvas.width).toBe(1080);
-        expect(canvas.height).toBe(1920);
+        expect(canvas.height).toBe(1300);
     });
 
     it('handles image loading errors gracefully', async () => {
