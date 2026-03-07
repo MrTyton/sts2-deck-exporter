@@ -273,5 +273,12 @@ export async function generateDeckImage(cards: CardData[], meta?: ImageExportMet
         }
     });
 
+    // Add website watermark at the bottom right
+    ctx.fillStyle = '#90929c'; // text-secondary
+    ctx.font = '24px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('mrtyton.github.io/sts2-deck-exporter', canvas.width - padding, canvas.height - 24);
+    ctx.textAlign = 'left'; // Reset
+
     return canvas;
 }
