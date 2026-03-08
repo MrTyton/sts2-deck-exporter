@@ -16,18 +16,10 @@ export interface RawCardData {
     count?: number;
 }
 
-export interface RunData {
-    win_rate?: number;
-    character_chosen: string;
-    playtime: number;
-    score: number;
-    timestamp: number;
-    victory: boolean;
-    floor_reached: number;
-    ascension_level: number;
+export interface PlayerRunData {
+    characterName: string;
+    cards: CardData[];
     relics?: string[];
-    master_deck?: RawCardData[];
-    seed?: number;
 }
 
 export interface ImageExportMeta {
@@ -35,5 +27,11 @@ export interface ImageExportMeta {
     ascension?: string | number;
     outcome?: string;
     floor?: string | number;
-    relics?: string[];
+    relics?: string[]; // Legacy/single player support
+}
+
+export interface RunData {
+    meta?: ImageExportMeta;
+    players?: PlayerRunData[];
+    cards?: CardData[]; // Legacy/single player support
 }

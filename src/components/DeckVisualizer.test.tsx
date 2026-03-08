@@ -19,6 +19,27 @@ describe('DeckVisualizer', () => {
         relics: ['burning_blood', 'bag_of_preparation']
     };
 
+    const mockMultiplayerRun: any = {
+        meta: {
+            characterName: 'The Ironclad & The Silent',
+            ascension: 10,
+            outcome: 'Defeat',
+            floor: 30
+        },
+        players: [
+            {
+                characterName: 'The Ironclad',
+                relics: ['burning_blood'],
+                cards: [{ id: 'strike_ironclad', count: 1, upgraded: false, upgrades: 0 }]
+            },
+            {
+                characterName: 'The Silent',
+                relics: ['ring_of_the_snake'],
+                cards: [{ id: 'strike_silent', count: 2, upgraded: true, upgrades: 1, enchantment: 'POISON' }]
+            }
+        ]
+    };
+
     beforeEach(() => {
         vi.clearAllMocks();
         // Mock global window functions
@@ -35,7 +56,7 @@ describe('DeckVisualizer', () => {
     });
 
     it('renders the character name, total cards, ascension, and outcome correctly', () => {
-        render(<DeckVisualizer cards={mockCards} meta={mockMeta} />);
+        render(<DeckVisualizer run={{ cards: mockCards, meta: mockMeta }} />);
         expect(screen.getByText('The Ironclad')).toBeInTheDocument();
         expect(screen.getByText('5 cards')).toBeInTheDocument();
         expect(screen.getByText(/A20/)).toBeInTheDocument();
@@ -44,7 +65,7 @@ describe('DeckVisualizer', () => {
     });
 
     it('renders the relics accurately when provided', () => {
-        render(<DeckVisualizer cards={mockCards} meta={mockMeta} />);
+        render(<DeckVisualizer run={{ cards: mockCards, meta: mockMeta }} />);
         expect(screen.getByText('Relics')).toBeInTheDocument();
         const relicImages = screen.getAllByRole('img').filter(img => (img as HTMLImageElement).src.includes('relics')) as HTMLImageElement[];
         expect(relicImages.length).toBe(2);
@@ -52,7 +73,7 @@ describe('DeckVisualizer', () => {
     });
 
     it('renders cards with correct counts, upgrades, and enchantments', () => {
-        render(<DeckVisualizer cards={mockCards} meta={mockMeta} />);
+        render(<DeckVisualizer run={{ cards: mockCards, meta: mockMeta }} />);
         expect(screen.getByText('strike')).toBeInTheDocument();
         expect(screen.getByText('x3')).toBeInTheDocument();
 
@@ -62,7 +83,7 @@ describe('DeckVisualizer', () => {
     });
 
     it('calls navigator.clipboard.writeText on Copy Share Link', async () => {
-        render(<DeckVisualizer cards={mockCards} meta={mockMeta} />);
+        render(<DeckVisualizer run={{ cards: mockCards, meta: mockMeta }} />);
         const copyLinkBtn = screen.getByText('Copy Share Link');
         fireEvent.click(copyLinkBtn);
 
@@ -73,9 +94,32 @@ describe('DeckVisualizer', () => {
     });
 
     it('calls window.location.assign on Reset', () => {
-        render(<DeckVisualizer cards={mockCards} meta={mockMeta} />);
+        render(<DeckVisualizer run={{ cards: mockCards, meta: mockMeta }} />);
         const resetBtn = screen.getByText('Reset');
         fireEvent.click(resetBtn);
         expect(window.location.assign).toHaveBeenCalledWith(window.location.pathname);
+    });
+
+    it('renders multiplayer run correctly (stacked layers)', () => {
+        render(<DeckVisualizer run={mockMultiplayerRun} />);
+
+        // Metadata
+        expect(screen.getByText('The Ironclad & The Silent')).toBeInTheDocument();
+        expect(screen.getByText(/A10/)).toBeInTheDocument();
+        expect(screen.getByText(/Defeat/)).toBeInTheDocument();
+
+        // Ironclad Section
+        // The player sub-header
+        expect(screen.getByText('The Ironclad', { selector: 'h3' })).toBeInTheDocument();
+        expect(screen.getAllByText('1 cards').length).toBeGreaterThan(0);
+        expect(screen.getByText('strike')).toBeInTheDocument();
+
+        // Silent Section
+        // The player sub-header
+        expect(screen.getByText('The Silent', { selector: 'h3' })).toBeInTheDocument();
+        expect(screen.getAllByText('2 cards').length).toBeGreaterThan(0);
+        expect(screen.getByText('strike +')).toBeInTheDocument();
+        expect(screen.getByText('x2')).toBeInTheDocument();
+        expect(screen.getByText('POISON')).toBeInTheDocument();
     });
 });

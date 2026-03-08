@@ -4,6 +4,7 @@ import type { CardData, ImageExportMeta } from '../types';
 export interface RunData {
     meta?: ImageExportMeta;
     cards?: CardData[];
+    players?: import('../types').PlayerRunData[];
     // Other properties from raw run might exist, but we care about these
 }
 
@@ -27,7 +28,16 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
     }, [filters, onFilterChange]);
 
     const uniqueCharacters = useMemo(() => {
-        const chars = new Set(runs.map(r => r.meta?.characterName || 'Unknown'));
+        const chars = new Set<string>();
+        runs.forEach(r => {
+            if (r.players) {
+                r.players.forEach(p => chars.add(p.characterName));
+            } else if (r.meta?.characterName) {
+                chars.add(r.meta.characterName);
+            } else {
+                chars.add('Unknown');
+            }
+        });
         return ['All', ...Array.from(chars).sort()];
     }, [runs]);
 
@@ -45,7 +55,12 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
         let result = runs.map((run, index) => ({ run, index }));
 
         if (characterFilter !== 'All') {
-            result = result.filter(item => (item.run.meta?.characterName || 'Unknown') === characterFilter);
+            result = result.filter(item => {
+                if (item.run.players) {
+                    return item.run.players.some(p => p.characterName === characterFilter);
+                }
+                return (item.run.meta?.characterName || 'Unknown') === characterFilter;
+            });
         }
         if (outcomeFilter !== 'All') {
             result = result.filter(item => (item.run.meta?.outcome || 'Unknown') === outcomeFilter);
@@ -136,7 +151,13 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
                             'strike_necrobinder', 'defend_necrobinder', 'strike_regent', 'defend_regent'
                         ];
                         let bgCards: CardData[] = [];
-                        if (run.cards && run.cards.length > 0) {
+                        if (run.players) {
+                            bgCards = run.players.map(p => {
+                                let c = p.cards.filter(c => !starterIds.includes(c.id)).slice(0, 1);
+                                if (c.length === 0 && p.cards.length > 0) c = p.cards.slice(0, 1);
+                                return c[0];
+                            }).filter(Boolean);
+                        } else if (run.cards && run.cards.length > 0) {
                             bgCards = run.cards.filter(c => !starterIds.includes(c.id)).slice(0, 1);
                             if (bgCards.length === 0) bgCards = run.cards.slice(0, 1); // Fallback
                         }
@@ -188,7 +209,7 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
                                             src={`${import.meta.env.BASE_URL}assets/portraits/${card.id}.webp`}
                                             alt=""
                                             style={{
-                                                flex: 1,
+                                                width: `${100 / bgCards.length}%`,
                                                 height: '100%',
                                                 objectFit: 'cover',
                                                 backgroundColor: 'var(--surface-color)',

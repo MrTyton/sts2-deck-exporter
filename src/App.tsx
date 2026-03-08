@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { FileUploader } from './components/FileUploader'
 import { DeckVisualizer } from './components/DeckVisualizer'
 import { Gallery } from './components/Gallery'
-import type { RunData } from './components/Gallery'
+import type { RunData, PlayerRunData } from './types'
 import { parseDeckArray } from './utils/deckParser'
 import { getCharacterName } from './utils/characterMapper'
 
@@ -34,6 +34,15 @@ function App() {
                                 cards: parseDeckArray(parsed),
                                 meta: undefined
                             }])
+                        } else if (parsed.players) {
+                            const fullPlayers = parsed.players.map((p: any) => ({
+                                ...p,
+                                cards: parseDeckArray(p.cards)
+                            }));
+                            setRuns([{
+                                players: fullPlayers,
+                                meta: parsed.meta
+                            }])
                         } else {
                             setRuns([{
                                 cards: parseDeckArray(parsed.deck),
@@ -56,13 +65,28 @@ function App() {
             const run = runs[selectedRunId]
             import('lz-string').then(lzString => {
                 try {
-                    const minimalDeck = run.cards ? run.cards.map(c => ({
-                        id: c.id,
-                        upgrades: c.upgrades || 0,
-                        enchantmentId: c.enchantment || null,
-                        count: c.count
-                    })) : [];
-                    const payload = { deck: minimalDeck, meta: run.meta }
+                    let payload: any = {};
+                    if (run.players) {
+                        const minimalPlayers = run.players.map(p => ({
+                            characterName: p.characterName,
+                            relics: p.relics,
+                            cards: p.cards.map(c => ({
+                                id: c.id,
+                                upgrades: c.upgrades || 0,
+                                enchantmentId: c.enchantment || null,
+                                count: c.count
+                            }))
+                        }));
+                        payload = { players: minimalPlayers, meta: run.meta };
+                    } else if (run.cards) {
+                        const minimalDeck = run.cards.map(c => ({
+                            id: c.id,
+                            upgrades: c.upgrades || 0,
+                            enchantmentId: c.enchantment || null,
+                            count: c.count
+                        }));
+                        payload = { deck: minimalDeck, meta: run.meta };
+                    }
                     const compressed = lzString.compressToEncodedURIComponent(JSON.stringify(payload))
                     window.history.replaceState(null, '', `#deck=${compressed}`)
                 } catch (err) {
@@ -80,9 +104,6 @@ function App() {
         const jsonArray = Array.isArray(rawJsons) ? rawJsons : [rawJsons];
 
         const newRuns = jsonArray.map(rawJson => {
-            const deckArray = rawJson.players[0].deck;
-            const relicsArray = rawJson.players[0].relics || [];
-
             let runLengthStr: string | number = "?";
             if (rawJson.map_point_history) {
                 let totalFloors = rawJson.map_point_history.reduce((acc: number, act: any[]) => acc + act.length, 0);
@@ -92,19 +113,30 @@ function App() {
             const ascension = rawJson.ascension || 0;
             const outcome = rawJson.win ? "Victory" : (rawJson.was_abandoned ? "Abandoned" : "Defeat");
 
-            const characterId = rawJson.players[0].character;
-            const characterName = getCharacterName(characterId);
+            const playersData: PlayerRunData[] = rawJson.players.map((player: any) => {
+                const characterId = player.character;
+                const characterName = getCharacterName(characterId);
+                const deckArray = player.deck;
+                const relicsArray = player.relics || [];
+
+                return {
+                    characterName: characterName || "Unknown Character",
+                    cards: parseDeckArray(deckArray),
+                    relics: relicsArray.map((r: any) => r.id.replace('RELIC.', '').toLowerCase())
+                };
+            });
+
+            const combinedNames = playersData.map(p => p.characterName).join(' & ');
 
             const metadata = {
-                relics: relicsArray.map((r: any) => r.id.replace('RELIC.', '').toLowerCase()),
                 floor: runLengthStr,
                 ascension: ascension,
                 outcome: outcome,
-                characterName: characterName || undefined
+                characterName: combinedNames
             };
 
             return {
-                cards: parseDeckArray(deckArray),
+                players: playersData,
                 meta: metadata
             };
         });
@@ -128,7 +160,13 @@ function App() {
                         <button className="modal-close" onClick={() => setIsInfoOpen(false)}>×</button>
                         <h2 style={{ marginBottom: '1rem', color: 'var(--accent-color)' }}>How to Use</h2>
                         <ul style={{ textAlign: 'left', marginBottom: '1.5rem', color: 'var(--text-primary)', lineHeight: '1.6', paddingLeft: '1.5rem' }}>
-                            <li>Locate your Slay the Spire 2 save files (usually in <code>%AppData%\Roaming\SlayTheSpire2\steam\&lt;SteamID&gt;\&lt;profile&gt;\saves\history</code>).</li>
+                            <li>
+                                Locate your Slay the Spire 2 save files:
+                                <ul>
+                                    <li><strong>Windows:</strong> <code>%AppData%\Roaming\SlayTheSpire2\steam\&lt;SteamID&gt;\&lt;profile&gt;\saves\history</code></li>
+                                    <li><strong>Mac:</strong> <code>~/Library/Application Support/Steam/userdata/&lt;SteamID&gt;/2868840/remote/&lt;profile&gt;/saves/history</code></li>
+                                </ul>
+                            </li>
                             <li>Upload one or multiple <code>.run</code> or <code>.backup</code> files.</li>
                             <li>View your run history, deck composition, and generate shareable images of your deck!</li>
                         </ul>
@@ -187,7 +225,7 @@ function App() {
                                 </button>
                             </div>
                         )}
-                        <DeckVisualizer cards={runs[selectedRunId].cards!} meta={runs[selectedRunId].meta} />
+                        <DeckVisualizer run={runs[selectedRunId]} />
                     </div>
                 )}
             </main>

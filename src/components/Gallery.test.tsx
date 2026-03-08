@@ -21,6 +21,13 @@ describe('Gallery', () => {
         {
             meta: { characterName: 'The Defect', ascension: 1, outcome: 'Victory', floor: 51 },
             cards: [{ id: 'strike_defect' }]
+        },
+        {
+            meta: { characterName: 'The Ironclad & The Silent', ascension: 5, outcome: 'Victory', floor: 50 },
+            players: [
+                { characterName: 'The Ironclad', cards: [{ id: 'strike_ironclad' }], relics: [] },
+                { characterName: 'The Silent', cards: [{ id: 'strike_silent' }], relics: [] }
+            ]
         }
     ];
 
@@ -69,5 +76,18 @@ describe('Gallery', () => {
 
         // The Ironclad is at index 0
         expect(onSelectMock).toHaveBeenCalledWith(0);
+    });
+
+    it('filters multiplayer runs by individual character names', () => {
+        render(<GalleryWrapper runs={mockRuns} onSelectRun={() => { }} />);
+
+        // Change character filter to 'The Silent'
+        const charSelect = screen.getAllByRole('combobox')[0];
+        fireEvent.change(charSelect, { target: { value: 'The Silent' } });
+
+        // Should show 'The Silent' (singleplayer) and 'The Ironclad & The Silent' (multiplayer)
+        expect(screen.getByRole('heading', { name: 'The Silent' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'The Ironclad & The Silent' })).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'The Ironclad' })).not.toBeInTheDocument(); // Singleplayer Ironclad shouldn't match
     });
 });

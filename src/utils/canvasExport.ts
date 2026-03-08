@@ -1,91 +1,145 @@
-import type { CardData, ImageExportMeta } from '../types';
+import type { RunData } from '../types';
 import { formatCardName } from './cardUtils';
 
 const imageCache = new Map<string, HTMLImageElement | null>();
 
-export async function generateDeckImage(cards: CardData[], meta?: ImageExportMeta): Promise<HTMLCanvasElement> {
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+    if (imageCache.has(src)) {
+        return Promise.resolve(imageCache.get(src) || null);
+    }
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            imageCache.set(src, img);
+            resolve(img);
+        };
+        img.onerror = () => {
+            imageCache.set(src, null);
+            resolve(null);
+        };
+        img.src = src;
+    });
+}
+
+export async function generateDeckImage(run: RunData): Promise<HTMLCanvasElement> {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 
-    // Sort all cards by count descending, then by id
-    let renderCards = [...cards];
-    renderCards.sort((a, b) => {
-        if (a.count !== b.count) return b.count - a.count; // count descending
-        return a.id.localeCompare(b.id); // alphabetical fallback
+    const playersToRender = run.players || [{
+        characterName: run.meta?.characterName || 'Your Run Deck',
+        cards: run.cards || [],
+        relics: run.meta?.relics || []
+    }];
+
+    // Pre-sort cards for all players
+    playersToRender.forEach(p => {
+        p.cards = [...(p.cards || [])].sort((a, b) => {
+            if (a.count !== b.count) return b.count - a.count;
+            return a.id.localeCompare(b.id);
+        });
     });
 
     const canvasWidth = 1080;
     const padding = 60;
     const gap = 24;
-
-    const hasRelics = meta && meta.relics && meta.relics.length > 0;
-    let relicsHeight = 0;
-    const relicSize = 72;
-    const relicGap = 16;
-
-    let baseHeaderHeight = 220;
-
-    if (hasRelics) {
-        const availableWidth = canvasWidth - (padding * 2);
-        const relicsPerRow = Math.floor((availableWidth + relicGap) / (relicSize + relicGap));
-        const relicRows = Math.ceil(meta.relics!.length / relicsPerRow);
-        relicsHeight = 80 + (relicRows * (relicSize + relicGap)); // 80px for "RELICS" heading and spacing
-    }
-
-    const headerHeight = baseHeaderHeight + relicsHeight;
     const availableWidth = canvasWidth - (padding * 2);
 
-    const numCards = renderCards.length;
-    const targetHeight = 1920;
+    const relicSize = 72;
+    const relicGap = 16;
+    const relicsPerRow = Math.floor((availableWidth + relicGap) / (relicSize + relicGap));
 
-    let bestCols = 5;
-    let bestDiff = Infinity;
-    let bestCalculatedHeight = 0;
-    let bestCardSize = 0;
+    // Calculate top header height
+    let currentY = padding;
+    currentY += 80; // Title (e.g. characterName)
 
-    if (numCards === 0) {
-        bestCols = 1;
-        bestCardSize = availableWidth;
-        bestCalculatedHeight = availableWidth;
-    } else {
-        // Test column counts to find the one that yields a height closest to 9:16 (1920px)
-        const actualMinCols = numCards < 3 ? numCards : 3;
-        const maxCols = Math.min(7, numCards); // Don't use more than 7 columns to keep text readable
+    if (run.meta) {
+        currentY += 60; // run info (Ascension, Floor, Outcome)
+    }
+    currentY += 40; // spacing before players
 
-        for (let c = actualMinCols; c <= maxCols; c++) {
-            const size = Math.floor((availableWidth - (c - 1) * gap) / c);
-            const r = Math.ceil(numCards / c);
-            const gridH = r * size + (r - 1) * gap;
-
-            // Expected total height if we use this column count
-            const expectedTotalHeight = headerHeight + gridH + (padding * 2);
-            const diff = Math.abs(expectedTotalHeight - targetHeight);
-
-            if (diff < bestDiff) {
-                bestDiff = diff;
-                bestCols = c;
-                bestCardSize = size;
-                bestCalculatedHeight = gridH;
-            }
-        }
+    // Calculate layouts per player
+    interface PlayerLayout {
+        player: NonNullable<RunData['players']>[0];
+        numCards: number;
+        columns: number;
+        cardSize: number;
+        rows: number;
+        relicsHeight: number;
+        gridHeight: number;
+        startY: number;
+        totalHeight: number;
     }
 
-    const columns = bestCols;
-    const cardSize = bestCardSize;
-    // rows omitted since it's unread
-    const gridContentWidth = columns * cardSize + (columns - 1) * gap;
-    const calculatedHeight = Math.max(bestCalculatedHeight, cardSize);
+    const layouts: PlayerLayout[] = [];
 
-    // Dynamic height based on content, but optimized to naturally hit targetHeight
-    let canvasHeight = headerHeight + calculatedHeight + (padding * 2);
+    for (let i = 0; i < playersToRender.length; i++) {
+        const player = playersToRender[i];
+        const numCards = player.cards.length;
 
-    // Keep a reasonable minimum height if the deck is extremely small
-    const minCanvasHeight = 1080; // 1:1 image layout floor
-    canvasHeight = Math.max(canvasHeight, minCanvasHeight);
+        // If it's a single player, try to fill closer to 1920 height
+        let bestCols = 5;
+        if (playersToRender.length === 1 && numCards > 0) {
+            let bestDiff = Infinity;
+            const actualMinCols = numCards < 3 ? numCards : 3;
+            const maxCols = Math.min(7, numCards);
+            for (let c = actualMinCols; c <= maxCols; c++) {
+                const size = Math.floor((availableWidth - (c - 1) * gap) / c);
+                const r = Math.ceil(numCards / c);
+                const gridH = r * size + (r - 1) * gap;
+                const expectedTotalHeight = currentY + gridH + (padding * 2);
+                const diff = Math.abs(expectedTotalHeight - 1920);
+                if (diff < bestDiff) {
+                    bestDiff = diff;
+                    bestCols = c;
+                }
+            }
+        } else {
+            // Multiplayer: just use 5 columns (or less if <5 cards)
+            bestCols = Math.min(5, Math.max(3, numCards));
+        }
 
-    // Center the grid within the available space
-    const startX = padding + Math.floor((availableWidth - gridContentWidth) / 2);
-    const startY = padding + headerHeight + (canvasHeight > (headerHeight + calculatedHeight + (padding * 2)) ? Math.floor((canvasHeight - (headerHeight + calculatedHeight + (padding * 2))) / 2) : 0);
+        if (bestCols === 0) bestCols = 1;
+        const cardSize = Math.floor((availableWidth - (bestCols - 1) * gap) / bestCols);
+        const rows = Math.ceil(numCards / bestCols);
+        const gridHeight = numCards === 0 ? 0 : (rows * cardSize + (rows - 1) * gap);
+
+        const hasRelics = player.relics && player.relics.length > 0;
+        let relicsHeight = 0;
+        if (hasRelics) {
+            const relicRows = Math.ceil(player.relics!.length / relicsPerRow);
+            relicsHeight = 80 + (relicRows * (relicSize + relicGap));
+        }
+
+        let playerHeaderHeight = 0;
+        if (playersToRender.length > 1) {
+            playerHeaderHeight = 80; // 'Character Name - X cards'
+        } else {
+            playerHeaderHeight = 60; // just 'X cards'
+        }
+
+        const totalH = playerHeaderHeight + relicsHeight + gridHeight + (i < playersToRender.length - 1 ? 80 : 0);
+
+        layouts.push({
+            player,
+            numCards,
+            columns: bestCols,
+            cardSize,
+            rows,
+            relicsHeight,
+            gridHeight,
+            startY: currentY,
+            totalHeight: totalH
+        });
+
+        currentY += totalH;
+    }
+
+    // currentY is now the bottom of the last player. Add padding.
+    let canvasHeight = currentY + padding;
+    if (playersToRender.length === 1) {
+        canvasHeight = Math.max(canvasHeight, 1080);
+    }
 
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
@@ -94,191 +148,207 @@ export async function generateDeckImage(cards: CardData[], meta?: ImageExportMet
     ctx.fillStyle = '#0d0f12';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw header
-    ctx.fillStyle = '#d6b251'; // accent color
+    // Draw top header
+    let drawY = padding;
+    ctx.fillStyle = '#d6b251';
     ctx.font = 'bold 72px sans-serif';
-    const title = meta?.characterName || 'Your Run Deck';
-    ctx.fillText(title, padding, padding + 60);
+    const title = run.meta?.characterName || 'Your Run Deck';
+    ctx.fillText(title, padding, drawY + 60);
+    drawY += 80;
 
-    ctx.fillStyle = '#90929c'; // text-secondary
-    ctx.font = '32px sans-serif';
-    const totalCards = cards.reduce((acc, c) => acc + c.count, 0);
-    ctx.fillText(`${totalCards} cards`, padding, padding + 120);
-
-    if (meta) {
-        ctx.fillStyle = '#ebecf0'; // text-primary
+    if (run.meta) {
+        ctx.fillStyle = '#ebecf0';
         ctx.font = 'bold 36px sans-serif';
-        const runInfo = `A${meta.ascension} • ${meta.outcome}  |  Floor ${meta.floor}`;
-        ctx.fillText(runInfo, padding, padding + 170);
+        const runInfo = `A${run.meta.ascension} • ${run.meta.outcome}  |  Floor ${run.meta.floor}`;
+        ctx.fillText(runInfo, padding, drawY + 36);
+        drawY += 60;
     }
 
-    // Draw relics if present
-    if (hasRelics) {
-        ctx.fillStyle = '#90929c';
-        ctx.font = 'bold 28px sans-serif';
-        ctx.fillText('RELICS', padding, padding + 240);
+    // Add gap before players
+    drawY += 40;
 
-        let relicX = padding;
-        let relicY = padding + 270;
-        const availableWidth = canvasWidth - (padding * 2);
+    for (let i = 0; i < layouts.length; i++) {
+        const layout = layouts[i];
+        const p = layout.player;
+        const pCardsTotal = p.cards.reduce((acc, c) => acc + c.count, 0);
 
-        for (const relic of meta.relics!) {
-            if (relicX + relicSize > padding + availableWidth) {
-                relicX = padding;
-                relicY += relicSize + relicGap;
-            }
-            try {
-                const img = await loadImage(`${import.meta.env.BASE_URL}assets/relics/${relic}.webp`);
-                if (img) {
-                    ctx.drawImage(img, relicX, relicY, relicSize, relicSize);
-                }
-            } catch (e) { }
-            relicX += relicSize + relicGap;
-        }
-    }
+        // Player Header
+        if (playersToRender.length > 1) {
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 40px sans-serif';
+            ctx.fillText(p.characterName, padding, drawY + 40);
 
-    // Load function with simple caching
-    function loadImage(src: string): Promise<HTMLImageElement | null> {
-        if (imageCache.has(src)) {
-            return Promise.resolve(imageCache.get(src) || null);
-        }
+            const textWidth = ctx.measureText(p.characterName).width;
 
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => {
-                imageCache.set(src, img);
-                resolve(img);
-            };
-            img.onerror = () => {
-                imageCache.set(src, null);
-                resolve(null);
-            };
-            img.src = src;
-        });
-    }
-
-    // Draw renderCards
-    let cardPromises = renderCards.map((card, index) => {
-        return loadImage(`${import.meta.env.BASE_URL}assets/portraits/${card.id}.webp`).then(img => ({ card, img, index }));
-    });
-
-    const cardResults = await Promise.all(cardPromises);
-
-    cardResults.forEach(({ card, img, index }) => {
-        const col = index % columns;
-        const row = Math.floor(index / columns);
-
-        const x = startX + col * (cardSize + gap);
-        const y = startY + row * (cardSize + gap);
-
-        if (img) {
-            ctx.drawImage(img, x, y, cardSize, cardSize);
-        } else {
-            ctx.fillStyle = '#191c24';
-            ctx.fillRect(x, y, cardSize, cardSize);
             ctx.fillStyle = '#90929c';
-            ctx.font = '24px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('Image Missing', x + cardSize / 2, y + cardSize / 2);
-            ctx.textAlign = 'left';
-        }
+            ctx.font = '28px sans-serif';
+            ctx.fillText(`— ${pCardsTotal} cards`, padding + textWidth + 20, drawY + 38);
+            drawY += 60;
 
-        // Draw border
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, cardSize, cardSize);
-
-        // Draw overlay gradient at bottom
-        const gradientHeight = 140;
-        const gradient = ctx.createLinearGradient(0, y + cardSize - gradientHeight, 0, y + cardSize);
-        gradient.addColorStop(0, 'transparent');
-        gradient.addColorStop(1, 'rgba(0,0,0,0.9)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(x, y + cardSize - gradientHeight, cardSize, gradientHeight);
-
-        // Draw text: Card Name + Upgrades
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '600 24px sans-serif';
-
-        const name = formatCardName(card.id);
-        const nameCapitalized = name.charAt(0).toUpperCase() + name.slice(1);
-        const upg = card.upgraded ? (card.upgrades > 1 ? `+${card.upgrades}` : '+') : '';
-        const cardTitle = `${nameCapitalized} ${upg}`.trim();
-
-        ctx.shadowColor = 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetY = 2;
-
-        const maxWidth = cardSize - 32;
-        const words = cardTitle.split(' ');
-        let line = '';
-        let lines: string[] = [];
-
-        for (let n = 0; n < words.length; n++) {
-            const testLine = line + words[n] + ' ';
-            const metrics = ctx.measureText(testLine);
-            const testWidth = metrics.width;
-            if (testWidth > maxWidth && n > 0) {
-                lines.push(line.trim());
-                line = words[n] + ' ';
-            } else {
-                line = testLine;
-            }
-        }
-        lines.push(line.trim());
-
-        let textBaseY = y + cardSize - 30;
-        if (card.enchantment) {
-            textBaseY -= 20; // Shift up if there's enchantment
-        }
-
-        const lineHeight = 28;
-        const startTextY = textBaseY - (lines.length - 1) * lineHeight;
-
-        for (let n = 0; n < lines.length; n++) {
-            ctx.fillText(lines[n], x + 16, startTextY + n * lineHeight);
-        }
-
-        if (card.enchantment) {
-            ctx.fillStyle = '#d6b251'; // accent color
-            ctx.font = '700 16px sans-serif';
-            ctx.fillText(card.enchantment.toUpperCase(), x + 16, y + cardSize - 10);
-        }
-
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur = 0;
-        ctx.shadowOffsetY = 0;
-
-        if (card.count > 1) {
-            const badgeW = 60;
-            const badgeH = 32;
-            const badgeX = x + cardSize - badgeW - 12;
-            const badgeY = y + 12;
-
-            ctx.fillStyle = 'rgba(0,0,0,0.8)';
+            // Draw separator
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 16);
-            ctx.fill();
-
-            ctx.strokeStyle = 'rgba(214, 178, 81, 0.5)';
-            ctx.lineWidth = 1;
+            ctx.moveTo(padding, drawY);
+            ctx.lineTo(canvasWidth - padding, drawY);
             ctx.stroke();
+            drawY += 20;
 
-            ctx.fillStyle = '#d6b251';
-            ctx.font = 'bold 18px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(`x${card.count}`, badgeX + badgeW / 2, badgeY + 22);
-            ctx.textAlign = 'left';
+        } else {
+            ctx.fillStyle = '#90929c';
+            ctx.font = '32px sans-serif';
+            ctx.fillText(`${pCardsTotal} cards`, padding, drawY + 30);
+            drawY += 60;
         }
-    });
 
-    // Add website watermark at the bottom right
-    ctx.fillStyle = '#90929c'; // text-secondary
+        // Relics
+        if (p.relics && p.relics.length > 0) {
+            ctx.fillStyle = '#90929c';
+            ctx.font = 'bold 28px sans-serif';
+            ctx.fillText('RELICS', padding, drawY + 30);
+            drawY += 50;
+
+            let relicX = padding;
+            for (const relic of p.relics) {
+                if (relicX + relicSize > padding + availableWidth) {
+                    relicX = padding;
+                    drawY += relicSize + relicGap;
+                }
+                try {
+                    const img = await loadImage(`${import.meta.env.BASE_URL}assets/relics/${relic}.webp`);
+                    if (img) {
+                        ctx.drawImage(img, relicX, drawY, relicSize, relicSize);
+                    }
+                } catch (e) { }
+                relicX += relicSize + relicGap;
+            }
+            drawY += relicSize + relicGap + 20; // extra padding after relics
+        }
+
+        // Cards Grid
+        const gridContentWidth = layout.columns * layout.cardSize + (layout.columns - 1) * gap;
+        const gridStartX = padding + Math.floor((availableWidth - gridContentWidth) / 2);
+
+        let cardPromises = p.cards.map((card, index) => {
+            return loadImage(`${import.meta.env.BASE_URL}assets/portraits/${card.id}.webp`).then(img => ({ card, img, index }));
+        });
+        const cardResults = await Promise.all(cardPromises);
+
+        cardResults.forEach(({ card, img, index }) => {
+            const col = index % layout.columns;
+            const row = Math.floor(index / layout.columns);
+
+            const x = gridStartX + col * (layout.cardSize + gap);
+            const y = drawY + row * (layout.cardSize + gap);
+
+            if (img) {
+                ctx.drawImage(img, x, y, layout.cardSize, layout.cardSize);
+            } else {
+                ctx.fillStyle = '#191c24';
+                ctx.fillRect(x, y, layout.cardSize, layout.cardSize);
+                ctx.fillStyle = '#90929c';
+                ctx.font = '24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Image Missing', x + layout.cardSize / 2, y + layout.cardSize / 2);
+                ctx.textAlign = 'left';
+            }
+
+            // Draw border
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, layout.cardSize, layout.cardSize);
+
+            // Overlay gradient
+            const gradientHeight = Math.min(140, layout.cardSize * 0.5);
+            const gradient = ctx.createLinearGradient(0, y + layout.cardSize - gradientHeight, 0, y + layout.cardSize);
+            gradient.addColorStop(0, 'transparent');
+            gradient.addColorStop(1, 'rgba(0,0,0,0.9)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, y + layout.cardSize - gradientHeight, layout.cardSize, gradientHeight);
+
+            // Text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '600 24px sans-serif';
+
+            const name = formatCardName(card.id);
+            const nameCapitalized = name.charAt(0).toUpperCase() + name.slice(1);
+            const upg = card.upgraded ? (card.upgrades > 1 ? `+${card.upgrades}` : '+') : '';
+            const cardTitle = `${nameCapitalized} ${upg}`.trim();
+
+            ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetY = 2;
+
+            const maxWidth = layout.cardSize - 32;
+            const words = cardTitle.split(' ');
+            let line = '';
+            let lines: string[] = [];
+
+            for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > maxWidth && n > 0) {
+                    lines.push(line.trim());
+                    line = words[n] + ' ';
+                } else {
+                    line = testLine;
+                }
+            }
+            lines.push(line.trim());
+
+            let textBaseY = y + layout.cardSize - 30;
+            if (card.enchantment) {
+                textBaseY -= 20;
+            }
+
+            const lineHeight = 28;
+            const startTextY = textBaseY - (lines.length - 1) * lineHeight;
+
+            for (let n = 0; n < lines.length; n++) {
+                ctx.fillText(lines[n], x + 16, startTextY + n * lineHeight);
+            }
+
+            if (card.enchantment) {
+                ctx.fillStyle = '#d6b251';
+                ctx.font = '700 16px sans-serif';
+                ctx.fillText(card.enchantment.toUpperCase(), x + 16, y + layout.cardSize - 10);
+            }
+
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+
+            if (card.count > 1) {
+                const badgeW = 60;
+                const badgeH = 32;
+                const badgeX = x + layout.cardSize - badgeW - 12;
+                const badgeY = y + 12;
+
+                ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                ctx.beginPath();
+                ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 16);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(214, 178, 81, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.fillStyle = '#d6b251';
+                ctx.font = 'bold 18px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`x${card.count}`, badgeX + badgeW / 2, badgeY + 22);
+                ctx.textAlign = 'left';
+            }
+        });
+
+        drawY += layout.gridHeight + (i < layouts.length - 1 ? 80 : 0);
+    }
+
+    ctx.fillStyle = '#90929c';
     ctx.font = '24px sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText('mrtyton.github.io/sts2-deck-exporter', canvas.width - padding, canvas.height - 24);
-    ctx.textAlign = 'left'; // Reset
+    ctx.textAlign = 'left';
 
     return canvas;
 }

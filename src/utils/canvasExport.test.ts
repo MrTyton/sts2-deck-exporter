@@ -63,17 +63,16 @@ describe('generateDeckImage', () => {
         const cards = [{ id: 'strike', count: 1 }] as any;
         const meta = { characterName: 'Test', ascension: 1, outcome: 'Victory', floor: 50, relics: [] };
 
-        const canvas = await generateDeckImage(cards, meta);
+        const canvas = await generateDeckImage({ cards, meta });
 
         expect(canvas.width).toBe(1080);
-        expect(canvas.height).toBe(1300);
+        expect(canvas.height).toBe(1320);
     });
 
     it('handles image loading errors gracefully', async () => {
         const cards = [{ id: 'error_card', count: 1 }] as any;
-        const meta = undefined;
 
-        const canvas = await generateDeckImage(cards, meta);
+        const canvas = await generateDeckImage({ cards });
         const ctx: any = canvas.getContext('2d');
 
         // When image fails, it should draw a fallback rectangle
@@ -88,7 +87,7 @@ describe('generateDeckImage', () => {
             { id: 'c', count: 2 }
         ] as any;
 
-        const canvas = await generateDeckImage(cards, undefined);
+        const canvas = await generateDeckImage({ cards });
         const ctx: any = canvas.getContext('2d');
 
         // We know it draws text for card names. So the first card drawn should be 'a'.
@@ -101,9 +100,9 @@ describe('generateDeckImage', () => {
 
     it('displays the correct number of total cards', async () => {
         const cards = [{ id: 'strike', count: 5 }, { id: 'defend', count: 5 }] as any;
-        const canvas = await generateDeckImage(cards, undefined);
+        const canvas = await generateDeckImage({ cards });
         const ctx: any = canvas.getContext('2d');
 
-        expect(ctx.fillText).toHaveBeenCalledWith('10 cards', 60, 180);
+        expect(ctx.fillText).toHaveBeenCalledWith('10 cards', 60, 210);
     });
 });
