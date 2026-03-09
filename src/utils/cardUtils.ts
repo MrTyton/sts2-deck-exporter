@@ -1,6 +1,7 @@
 /**
  * Formats a card ID into a displayable name.
  * Specifically strips character names from basic "Strike" and "Defend" cards.
+ * Now also ensures Title Case (e.g., "Body Slam").
  */
 export function formatCardName(id: string): string {
     // Replace underscores with spaces
@@ -14,11 +15,15 @@ export function formatCardName(id: string): string {
     if (lowerName.startsWith('strike ') || lowerName.startsWith('defend ')) {
         const parts = lowerName.split(' ');
         if (parts.length === 2 && characterSuffixes.includes(parts[1])) {
-            // Return only the first word ("Strike" or "Defend")
-            // Use the original name's capitalization for the first word
-            return name.split(' ')[0];
+            // Return only the first word capitalized ("Strike" or "Defend")
+            const firstWord = parts[0];
+            return firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
         }
     }
 
-    return name;
+    // Convert to Title Case
+    return name
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
 }
