@@ -163,7 +163,7 @@ function App() {
                             <li>
                                 Locate your Slay the Spire 2 save files:
                                 <ul>
-                                    <li><strong>Windows:</strong> <code>%AppData%\Roaming\SlayTheSpire2\steam\&lt;SteamID&gt;\&lt;profile&gt;\saves\history</code></li>
+                                    <li><strong>Windows:</strong> <code>%AppData%\SlayTheSpire2\steam\&lt;SteamID&gt;\&lt;profile&gt;\saves\history</code></li>
                                     <li><strong>Mac:</strong> <code>~/Library/Application Support/Steam/userdata/&lt;SteamID&gt;/2868840/remote/&lt;profile&gt;/saves/history</code></li>
                                 </ul>
                             </li>
