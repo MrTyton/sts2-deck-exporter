@@ -1,5 +1,6 @@
 import { idToNum, numToId, charToNum, numToChar } from './encoderDict';
 import { BitWriter, BitReader } from './bitstream';
+import { getCharacterName } from './characterMapper';
 import type { RunData, PlayerRunData, ImageExportMeta } from '../types';
 
 // Width Configuration
@@ -70,7 +71,8 @@ export function encodeRun(run: RunData): string | null {
             const p = players[i];
 
             // Character
-            let charIdNum = charToNum[p.characterName.toLowerCase()];
+            const normalizedCharName = p.characterName.toLowerCase().replace(/^the\s+/, '');
+            let charIdNum = charToNum[normalizedCharName];
             if (charIdNum === undefined) charIdNum = 7;
             writer.write(charIdNum, BITS_CHARACTER);
 
@@ -151,10 +153,8 @@ export function decodeRun(base64UrlStr: string): RunData | null {
 
         for (let i = 0; i < numPlayers; i++) {
             const charIdNum = reader.read(BITS_CHARACTER);
-            let characterName = numToChar[charIdNum] || 'Unknown';
-            if (characterName !== 'Unknown') {
-                characterName = characterName.charAt(0).toUpperCase() + characterName.slice(1);
-            }
+            const rawCharName = numToChar[charIdNum];
+            const characterName = getCharacterName(rawCharName) || 'Unknown';
 
             const numRelics = reader.read(BITS_NUM_RELICS);
             const relics: string[] = [];

@@ -23,7 +23,10 @@ if (fs.existsSync(existingDictPath)) {
     if (match) {
         // Clean and parse the strings
         const items = match[1].split(',')
-            .map((s: string) => s.trim().replace(/^['"]|['"]$/g, ''))
+            .map((s: string) => {
+                const clean = s.split('//')[0].trim();
+                return clean.replace(/^['"]|['"]$/g, '');
+            })
             .filter((s: string) => s.length > 0);
         currentDict = items;
     }
@@ -65,8 +68,9 @@ const characterMap = [
     "ironclad",
     "silent",
     "defect",
-    "necromancer",
-    "regent"
+    "necrobinder",
+    "regent",
+    "watcher"
 ];
 
 // Generate the TypeScript file content

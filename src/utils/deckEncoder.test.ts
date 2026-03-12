@@ -33,11 +33,11 @@ describe('Deck Encoder', () => {
                 floor: 50,
                 outcome: 'Victory',
                 time: '1:23:45',
-                characterName: 'Ironclad'
+                characterName: 'The Ironclad'
             },
             players: [
                 {
-                    characterName: 'ironclad',
+                    characterName: 'The Ironclad',
                     relics: ['vajra', 'war_hammer'],
                     cards: [
                         { id: 'bash', upgraded: true, upgrades: 1, enchantment: null, count: 4 },
@@ -63,12 +63,12 @@ describe('Deck Encoder', () => {
         expect(decodedRun!.meta?.floor).toBe(50);
         expect(decodedRun!.meta?.outcome).toBe('Victory');
         expect(decodedRun!.meta?.time).toBe('1:23:45');
-        expect(decodedRun!.meta?.characterName).toBe('Ironclad');
+        expect(decodedRun!.meta?.characterName).toBe('The Ironclad');
 
         expect(decodedRun!.players?.length).toBe(1);
 
         const player = decodedRun!.players![0];
-        expect(player.characterName.toLowerCase()).toBe('ironclad');
+        expect(player.characterName).toBe('The Ironclad');
         expect(player.relics).toContain('vajra');
         expect(player.relics).toContain('war_hammer');
 

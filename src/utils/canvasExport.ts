@@ -51,7 +51,29 @@ export async function generateDeckImage(run: RunData): Promise<HTMLCanvasElement
 
     // Calculate top header height
     let currentY = padding;
-    currentY += 80; // Title (e.g. characterName)
+
+    // Title wrapping logic
+    const title = run.meta?.characterName || 'Your Run Deck';
+    ctx.font = 'bold 72px sans-serif';
+    const titleLines: string[] = [];
+    const titleMaxWidth = availableWidth;
+
+    if (ctx.measureText(title).width > titleMaxWidth && title.includes(' & ')) {
+        const characters = title.split(' & ');
+        characters.forEach((char, idx) => {
+            if (idx < characters.length - 1) {
+                titleLines.push(char + ' &');
+            } else {
+                titleLines.push(char);
+            }
+        });
+    } else {
+        titleLines.push(title);
+    }
+
+    const titleLineHeight = 80;
+    const titleHeight = titleLines.length * titleLineHeight;
+    currentY += titleHeight;
 
     if (run.meta) {
         currentY += 60; // run info (Ascension, Floor, Outcome)
@@ -152,9 +174,11 @@ export async function generateDeckImage(run: RunData): Promise<HTMLCanvasElement
     let drawY = padding;
     ctx.fillStyle = '#d6b251';
     ctx.font = 'bold 72px sans-serif';
-    const title = run.meta?.characterName || 'Your Run Deck';
-    ctx.fillText(title, padding, drawY + 60);
-    drawY += 80;
+
+    titleLines.forEach((line) => {
+        ctx.fillText(line, padding, drawY + 60);
+        drawY += titleLineHeight;
+    });
 
     if (run.meta) {
         const badges = [

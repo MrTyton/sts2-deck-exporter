@@ -105,4 +105,41 @@ describe('generateDeckImage', () => {
 
         expect(ctx.fillText).toHaveBeenCalledWith('10 cards', 60, 210);
     });
+
+    it('wraps multiplayer character names if they are too long', async () => {
+        const cards = [{ id: 'strike', count: 1 }] as any;
+        const meta = {
+            characterName: 'The Defect & The Necrobinder & The Silent & The Ironclad',
+            ascension: 1,
+            outcome: 'Victory',
+            floor: 50
+        };
+
+        const mockCtx = new MockContext2D();
+        // Mock measureText to return a large width to trigger wrapping
+        // availableWidth is 960 (1080 - 120)
+        mockCtx.measureText = vi.fn().mockReturnValue({ width: 1000 });
+
+        const originalCreateElement = document.createElement;
+        document.createElement = vi.fn((tagName) => {
+            if (tagName === 'canvas') {
+                return {
+                    getContext: vi.fn(() => mockCtx as any),
+                    width: 0,
+                    height: 0,
+                    toDataURL: vi.fn(),
+                } as any;
+            }
+            return originalCreateElement.call(document, tagName);
+        });
+
+        await generateDeckImage({ cards, meta });
+
+        expect(mockCtx.fillText).toHaveBeenCalledWith('The Defect &', 60, 120);
+        expect(mockCtx.fillText).toHaveBeenCalledWith('The Necrobinder &', 60, 200);
+        expect(mockCtx.fillText).toHaveBeenCalledWith('The Silent &', 60, 280);
+        expect(mockCtx.fillText).toHaveBeenCalledWith('The Ironclad', 60, 360);
+
+        document.createElement = originalCreateElement;
+    });
 });

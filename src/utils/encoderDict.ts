@@ -942,14 +942,16 @@ export const charToNum: Record<string, number> = {
     "ironclad": 0,
     "silent": 1,
     "defect": 2,
-    "necromancer": 3,
+    "necrobinder": 3,
     "regent": 4,
+    "watcher": 5,
 };
 
 export const numToChar: string[] = [
     "ironclad", // 0
     "silent", // 1
     "defect", // 2
-    "necromancer", // 3
+    "necrobinder", // 3
     "regent", // 4
+    "watcher", // 5
 ];
