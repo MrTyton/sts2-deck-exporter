@@ -28,6 +28,7 @@ export interface ImageExportMeta {
     outcome?: string;
     floor?: string | number;
     time?: string;
+    timestamp?: number;
     relics?: string[]; // Legacy/single player support
 }
 

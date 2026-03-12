@@ -17,6 +17,7 @@ function App() {
         character: 'All',
         outcome: 'All',
         ascension: 'All',
+        playerCount: 'All',
         sortBy: 'date_desc'
     })
 
@@ -170,6 +171,7 @@ function App() {
             const ascension = rawJson.ascension || 0;
             const outcome = rawJson.win ? "Victory" : (rawJson.was_abandoned ? "Abandoned" : "Defeat");
             const timeStr = rawJson.run_time ? formatTime(rawJson.run_time) : undefined;
+            const timestamp = rawJson.start_time;
 
             const playersData: PlayerRunData[] = rawJson.players.map((player: any) => {
                 const characterId = player.character;
@@ -191,7 +193,8 @@ function App() {
                 ascension: ascension,
                 outcome: outcome,
                 characterName: combinedNames,
-                time: timeStr
+                time: timeStr,
+                timestamp: timestamp
             };
 
             const run: RunData = {

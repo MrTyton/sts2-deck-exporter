@@ -1,24 +1,25 @@
 import { useMemo, useCallback } from 'react';
-import type { CardData, ImageExportMeta } from '../types';
+import type { CardData, ImageExportMeta, PlayerRunData } from '../types';
 
 export interface RunData {
     meta?: ImageExportMeta;
     cards?: CardData[];
-    players?: import('../types').PlayerRunData[];
+    players?: PlayerRunData[];
     // Other properties from raw run might exist, but we care about these
 }
 
 export interface GalleryProps {
     runs: RunData[];
     onSelectRun: (index: number) => void;
-    filters?: Record<string, string>;
-    onFilterChange?: (filters: Record<string, string>) => void;
+    filters: Record<string, string>;
+    onFilterChange: (filters: Record<string, string>) => void;
 }
 
 export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: GalleryProps) {
     const characterFilter = filters.character || 'All';
     const outcomeFilter = filters.outcome || 'All';
     const ascensionFilter = filters.ascension || 'All';
+    const playerCountFilter = filters.playerCount || 'All';
     const sortBy = filters.sortBy || 'date_desc';
 
     const updateFilter = useCallback((key: string, value: string) => {
@@ -26,6 +27,18 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
             onFilterChange({ ...filters, [key]: value });
         }
     }, [filters, onFilterChange]);
+
+    const clearFilters = useCallback(() => {
+        if (onFilterChange) {
+            onFilterChange({
+                character: 'All',
+                outcome: 'All',
+                ascension: 'All',
+                playerCount: 'All',
+                sortBy: 'date_desc'
+            });
+        }
+    }, [onFilterChange]);
 
     const uniqueCharacters = useMemo(() => {
         const chars = new Set<string>();
@@ -51,6 +64,15 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
         return ['All', ...Array.from(ascensions).sort((a: any, b: any) => Number(a) - Number(b)).map(String)];
     }, [runs]);
 
+    const uniquePlayerCounts = useMemo(() => {
+        const counts = new Set<number>();
+        runs.forEach(r => {
+            if (r.players) counts.add(r.players.length);
+            else counts.add(1);
+        });
+        return ['All', ...Array.from(counts).sort((a, b) => a - b).map(String)];
+    }, [runs]);
+
     const processedRuns = useMemo(() => {
         let result = runs.map((run, index) => ({ run, index }));
 
@@ -68,10 +90,26 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
         if (ascensionFilter !== 'All') {
             result = result.filter(item => String(item.run.meta?.ascension ?? 0) === ascensionFilter);
         }
+        if (playerCountFilter !== 'All') {
+            result = result.filter(item => {
+                const count = item.run.players ? item.run.players.length : 1;
+                return String(count) === playerCountFilter;
+            });
+        }
 
         result.sort((a, b) => {
-            if (sortBy === 'date_desc') return b.index - a.index;
-            if (sortBy === 'date_asc') return a.index - b.index;
+            if (sortBy === 'date_desc') {
+                const timeA = a.run.meta?.timestamp || 0;
+                const timeB = b.run.meta?.timestamp || 0;
+                if (timeA !== timeB) return timeB - timeA;
+                return b.index - a.index;
+            }
+            if (sortBy === 'date_asc') {
+                const timeA = a.run.meta?.timestamp || 0;
+                const timeB = b.run.meta?.timestamp || 0;
+                if (timeA !== timeB) return timeA - timeB;
+                return a.index - b.index;
+            }
             if (sortBy === 'asc_desc') return Number(b.run.meta?.ascension || 0) - Number(a.run.meta?.ascension || 0);
             if (sortBy === 'asc_asc') return Number(a.run.meta?.ascension || 0) - Number(b.run.meta?.ascension || 0);
 
@@ -82,7 +120,7 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
         });
 
         return result;
-    }, [runs, characterFilter, outcomeFilter, ascensionFilter, sortBy]);
+    }, [runs, characterFilter, outcomeFilter, ascensionFilter, playerCountFilter, sortBy]);
 
     if (!runs || runs.length === 0) return null;
 
@@ -105,34 +143,48 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div className="glass-panel" style={{ display: 'flex', gap: '15px', padding: '15px', borderRadius: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <label style={labelStyle}>Character</label>
-                    <select style={selectStyle} value={characterFilter} onChange={e => updateFilter('character', e.target.value)}>
+            <div className="glass-panel" style={{ display: 'flex', gap: '8px', padding: '10px 12px', borderRadius: '12px', alignItems: 'center', flexWrap: 'nowrap' }}>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <label htmlFor="filter-character" style={{ ...labelStyle, fontSize: '0.85rem' }}>Hero</label>
+                    <select id="filter-character" style={{ ...selectStyle, fontSize: '0.85rem', padding: '0.3rem 1.5rem 0.3rem 0.6rem' }} value={characterFilter} onChange={e => updateFilter('character', e.target.value)}>
                         {uniqueCharacters.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <label style={labelStyle}>Outcome</label>
-                    <select style={selectStyle} value={outcomeFilter} onChange={e => updateFilter('outcome', e.target.value)}>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <label htmlFor="filter-outcome" style={{ ...labelStyle, fontSize: '0.85rem' }}>Result</label>
+                    <select id="filter-outcome" style={{ ...selectStyle, fontSize: '0.85rem', padding: '0.3rem 1.5rem 0.3rem 0.6rem' }} value={outcomeFilter} onChange={e => updateFilter('outcome', e.target.value)}>
                         {uniqueOutcomes.map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <label style={labelStyle}>Ascension</label>
-                    <select style={selectStyle} value={ascensionFilter} onChange={e => updateFilter('ascension', e.target.value)}>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <label htmlFor="filter-ascension" style={{ ...labelStyle, fontSize: '0.85rem' }}>Ascension</label>
+                    <select id="filter-ascension" style={{ ...selectStyle, fontSize: '0.85rem', padding: '0.3rem 1.5rem 0.3rem 0.6rem' }} value={ascensionFilter} onChange={e => updateFilter('ascension', e.target.value)}>
                         {uniqueAscensions.map(a => <option key={a} value={a}>{a === 'All' ? 'All' : `A${a}`}</option>)}
                     </select>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: 'auto' }}>
-                    <label style={labelStyle}>Sort By</label>
-                    <select style={selectStyle} value={sortBy} onChange={e => updateFilter('sortBy', e.target.value)}>
-                        <option value="date_desc">Newest First</option>
-                        <option value="date_asc">Oldest First</option>
-                        <option value="asc_desc">Ascension (High-Low)</option>
-                        <option value="asc_asc">Ascension (Low-High)</option>
-                        <option value="floor_desc">Floor (High-Low)</option>
-                        <option value="floor_asc">Floor (Low-High)</option>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <label htmlFor="filter-player-count" style={{ ...labelStyle, fontSize: '0.85rem' }}>Players</label>
+                    <select id="filter-player-count" style={{ ...selectStyle, fontSize: '0.85rem', padding: '0.3rem 1.5rem 0.3rem 0.6rem' }} value={playerCountFilter} onChange={e => updateFilter('playerCount', e.target.value)}>
+                        {uniquePlayerCounts.map(num => <option key={num} value={num}>{num}</option>)}
+                    </select>
+                </div>
+                <button
+                    className="btn-secondary"
+                    style={{ padding: '0.3rem 0.61rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+                    onClick={clearFilters}
+                >
+                    Clear Filters
+                </button>
+
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginLeft: 'auto' }}>
+                    <label htmlFor="sort-by" style={{ ...labelStyle, fontSize: '0.85rem' }}>Sort</label>
+                    <select id="sort-by" style={{ ...selectStyle, fontSize: '0.85rem', padding: '0.3rem 1.5rem 0.3rem 0.6rem' }} value={sortBy} onChange={e => updateFilter('sortBy', e.target.value)}>
+                        <option value="date_desc">Newest</option>
+                        <option value="date_asc">Oldest</option>
+                        <option value="asc_desc">Asc (High)</option>
+                        <option value="asc_asc">Asc (Low)</option>
+                        <option value="floor_desc">Floor (High)</option>
+                        <option value="floor_asc">Floor (Low)</option>
                     </select>
                 </div>
             </div>

@@ -1,11 +1,18 @@
 import { useState } from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { expect, describe, it, vi } from 'vitest';
 import { Gallery } from './Gallery';
 
 const GalleryWrapper = (props: any) => {
-    const [filters, setFilters] = useState({});
-    return <Gallery {...props} filters={filters} onFilterChange={setFilters} />;
+    const [filters, setFilters] = useState(props.filters || {});
+    return <Gallery
+        {...props}
+        filters={filters}
+        onFilterChange={(newFilters: any) => {
+            setFilters(newFilters);
+            if (props.onFilterChange) props.onFilterChange(newFilters);
+        }}
+    />;
 };
 
 describe('Gallery', () => {
@@ -89,5 +96,34 @@ describe('Gallery', () => {
         expect(screen.getByRole('heading', { name: 'The Silent' })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: 'The Ironclad & The Silent' })).toBeInTheDocument();
         expect(screen.queryByRole('heading', { name: 'The Ironclad' })).not.toBeInTheDocument(); // Singleplayer Ironclad shouldn't match
+    });
+
+    it('filters runs by player count', async () => {
+        render(<GalleryWrapper runs={mockRuns} onSelectRun={() => { }} />);
+
+        const playerSelect = screen.getByLabelText('Players');
+        fireEvent.change(playerSelect, { target: { value: '2' } });
+
+        await waitFor(() => {
+            expect(screen.getByRole('heading', { name: 'The Ironclad & The Silent' })).toBeInTheDocument();
+        });
+
+        expect(screen.queryByRole('heading', { name: 'The Ironclad' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'The Silent' })).not.toBeInTheDocument();
+    });
+
+    it('clears all filters when "Clear Filters" is clicked', () => {
+        render(<GalleryWrapper runs={mockRuns} onSelectRun={() => { }} />);
+
+        const outcomeSelect = screen.getAllByRole('combobox')[1];
+        fireEvent.change(outcomeSelect, { target: { value: 'Victory' } });
+
+        const clearButton = screen.getByRole('button', { name: 'Clear Filters' });
+        fireEvent.click(clearButton);
+
+        // All runs should be visible again
+        expect(screen.getByRole('heading', { name: 'The Ironclad' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'The Silent' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'The Defect' })).toBeInTheDocument();
     });
 });

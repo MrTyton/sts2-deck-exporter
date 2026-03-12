@@ -16,6 +16,7 @@ const BITS_ASCENSION = 5;
 const BITS_FLOOR = 6;
 const BITS_OUTCOME = 2; // 0=Victory, 1=Defeat, 2=Abandoned, 3=Unknown
 const BITS_TIME = 16;   // Up to 65535 seconds (~18 hours)
+const BITS_TIMESTAMP = 32;
 
 const BITS_NUM_RELICS = 6;
 const BITS_RELIC_ID = 11;
@@ -26,7 +27,7 @@ const BITS_UPGRADES = 1;
 const BITS_ENCHANTMENT_ID = 11;
 const BITS_COUNT = 4;
 
-const CURRENT_VERSION = 1;
+const CURRENT_VERSION = 2;
 
 export function encodeRun(run: RunData): string | null {
     try {
@@ -57,6 +58,7 @@ export function encodeRun(run: RunData): string | null {
         writer.write(floor, BITS_FLOOR);
         writer.write(outcomeNum, BITS_OUTCOME);
         writer.write(timeSeconds, BITS_TIME);
+        writer.write(run.meta?.timestamp || 0, BITS_TIMESTAMP);
 
         // Normalize players vs legacy single run format
         let players: PlayerRunData[] = run.players || [];
@@ -145,11 +147,17 @@ export function decodeRun(base64UrlStr: string): RunData | null {
         const timeSeconds = reader.read(BITS_TIME);
         const time = formatSecondsToTime(timeSeconds);
 
+        let timestamp: number | undefined = undefined;
+        if (version >= 2) {
+            timestamp = reader.read(BITS_TIMESTAMP);
+        }
+
         let meta: ImageExportMeta = {
             ascension,
             floor,
             outcome,
-            time
+            time,
+            timestamp
         };
 
         const numPlayersBits = (version === 0) ? V0_BITS_NUM_PLAYERS : V1_BITS_NUM_PLAYERS;
