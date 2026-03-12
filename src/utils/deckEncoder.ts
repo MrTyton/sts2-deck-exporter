@@ -18,7 +18,6 @@ const BITS_RELIC_ID = 11;
 const BITS_NUM_CARDS = 6;
 const BITS_CARD_ID = 11;
 const BITS_UPGRADES = 1;
-const BITS_HAS_ENCHANTMENT = 1;
 const BITS_ENCHANTMENT_ID = 11;
 const BITS_COUNT = 4;
 

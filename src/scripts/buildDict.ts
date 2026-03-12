@@ -23,8 +23,8 @@ if (fs.existsSync(existingDictPath)) {
     if (match) {
         // Clean and parse the strings
         const items = match[1].split(',')
-            .map(s => s.trim().replace(/^['"]|['"]$/g, ''))
-            .filter(s => s.length > 0);
+            .map((s: string) => s.trim().replace(/^['"]|['"]$/g, ''))
+            .filter((s: string) => s.length > 0);
         currentDict = items;
     }
 }
