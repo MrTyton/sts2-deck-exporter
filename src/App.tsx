@@ -156,6 +156,8 @@ function App() {
     const handleDeckLoaded = useCallback((rawJsons: any | any[]) => {
         setIsSharedView(false);
         const jsonArray = Array.isArray(rawJsons) ? rawJsons : [rawJsons];
+        const currentUIDs = getSavedRunUIDs();
+        const addedUIDsInThisBatch = new Set<string>();
 
         const newRuns: RunData[] = [];
         jsonArray.forEach(rawJson => {
@@ -197,16 +199,18 @@ function App() {
                 meta: metadata
             };
 
-            newRuns.push(run);
-
-            // Save to local storage
+            // Save to local storage with duplicate check
             try {
                 const bitpacked = encodeRun(run);
                 if (bitpacked) {
-                    saveRunUID(bitpacked);
+                    if (!currentUIDs.includes(bitpacked) && !addedUIDsInThisBatch.has(bitpacked)) {
+                        newRuns.push(run);
+                        saveRunUID(bitpacked);
+                        addedUIDsInThisBatch.add(bitpacked);
+                    }
                 }
             } catch (err) {
-                console.warn("Could not save run to local storage", err);
+                console.warn("Could not process run for saving", err);
             }
         });
 
