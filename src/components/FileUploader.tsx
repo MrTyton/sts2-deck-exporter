@@ -3,9 +3,10 @@ import type { DragEvent, ChangeEvent } from 'react';
 
 export interface FileUploaderProps {
     onDeckLoaded: (results: any[]) => void;
+    compact?: boolean;
 }
 
-export function FileUploader({ onDeckLoaded }: FileUploaderProps) {
+export function FileUploader({ onDeckLoaded, compact = false }: FileUploaderProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -116,12 +117,19 @@ export function FileUploader({ onDeckLoaded }: FileUploaderProps) {
             onDragOver={handleDrag}
             onDrop={handleDrop}
             style={{
-                padding: '3rem 2rem',
+                padding: compact ? '0.5rem 1rem' : '3rem 2rem',
                 textAlign: 'center',
-                borderStyle: isDragging ? 'dashed' : 'solid',
-                borderColor: isDragging ? 'var(--accent-color)' : 'var(--surface-border)',
+                borderStyle: (compact || isDragging) ? 'dashed' : 'solid',
+                borderWidth: compact ? '2.5px' : '1px',
+                borderColor: (compact || isDragging) ? 'var(--accent-color)' : 'var(--surface-border)',
                 transition: 'all 0.3s ease',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                display: compact ? 'inline-flex' : 'block',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: compact ? '44px' : 'auto',
+                width: compact ? 'auto' : '100%',
+                margin: compact ? '0' : '0 auto' // Remove '0 auto' for left alignment in parent grid
             }}
             onClick={handleSelectFiles}
         >
@@ -133,16 +141,34 @@ export function FileUploader({ onDeckLoaded }: FileUploaderProps) {
                 style={{ display: 'none' }}
                 onChange={handleFileInput}
             />
-            <div style={{ pointerEvents: 'none' }}>
-                <h2 style={{ marginBottom: '1rem', color: isDragging ? 'var(--accent-color)' : 'var(--text-primary)' }}>
-                    Drop Save/Run Files Here
-                </h2>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-                    Select or drag and drop multiple .run or .backup files to view them all at once
-                </p>
-                <button className="btn-primary" style={{ pointerEvents: 'none' }}>Select Files</button>
-            </div>
-            {error && <div style={{ color: '#ff6b6b', marginTop: '1.5rem', fontWeight: 500 }}>{error}</div>}
+            {compact ? (
+                <div style={{ pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '0.9rem', color: isDragging ? 'var(--accent-color)' : 'var(--text-primary)', fontWeight: 600 }}>
+                        {isDragging ? 'Drop Files Here' : 'Upload More Runs'}
+                    </span>
+                </div>
+            ) : (
+                <div style={{ pointerEvents: 'none' }}>
+                    <h2 style={{
+                        marginBottom: '1rem',
+                        fontSize: '2rem',
+                        color: isDragging ? 'var(--accent-color)' : 'var(--text-primary)'
+                    }}>
+                        Drop Save/Run Files Here
+                    </h2>
+                    <p style={{
+                        color: 'var(--text-secondary)',
+                        marginBottom: '2rem',
+                        fontSize: '1rem'
+                    }}>
+                        Select or drag and drop multiple .run or .backup files to add them to your collection
+                    </p>
+                    <button className="btn-primary" style={{
+                        pointerEvents: 'none'
+                    }}>Select Files</button>
+                </div>
+            )}
+            {error && <div style={{ color: '#ff6b6b', marginTop: compact ? '0' : '1.5rem', marginLeft: compact ? '1rem' : '0', fontWeight: 500, fontSize: compact ? '0.8rem' : '1rem' }}>{error}</div>}
         </div>
     );
 }

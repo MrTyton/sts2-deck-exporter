@@ -285,18 +285,31 @@ function App() {
                     <FileUploader onDeckLoaded={handleDeckLoaded} />
                 ) : selectedRunId === null ? (
                     <div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
-                            <button className="btn-secondary" onClick={() => {
-                                setRuns([]);
-                                clearSavedRuns();
-                            }}>Clear All Runs</button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'auto 1fr auto',
+                                alignItems: 'center',
+                                width: '100%',
+                                gap: '1rem'
+                            }}>
+                                <FileUploader onDeckLoaded={handleDeckLoaded} compact={true} />
+                                <div /> {/* Center spacer */}
+                                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                    <button className="btn-secondary" onClick={() => {
+                                        setRuns([]);
+                                        clearSavedRuns();
+                                    }}>Clear All Runs</button>
+                                </div>
+                            </div>
+
+                            <Gallery
+                                runs={runs}
+                                onSelectRun={setSelectedRunId}
+                                filters={galleryFilters}
+                                onFilterChange={setGalleryFilters}
+                            />
                         </div>
-                        <Gallery
-                            runs={runs}
-                            onSelectRun={setSelectedRunId}
-                            filters={galleryFilters}
-                            onFilterChange={setGalleryFilters}
-                        />
                         {/* We could also put the uploader below the gallery so they can add more, but let's keep it simple for now */}
                     </div>
                 ) : (

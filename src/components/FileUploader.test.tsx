@@ -67,4 +67,17 @@ describe('FileUploader', () => {
             expect(onDeckLoadedMock).toHaveBeenCalledWith([validJson]);
         });
     });
+
+    it('applies compact styling when the compact prop is true', () => {
+        const { container } = render(<FileUploader onDeckLoaded={() => { }} compact={true} />);
+        const uploaderDiv = container.firstChild as HTMLDivElement;
+
+        // Check for reduced padding (0.5rem 1rem)
+        expect(uploaderDiv.style.padding).toBe('0.5rem 1rem');
+
+        // Check for "Upload More Runs" text
+        expect(screen.getByText('Upload More Runs')).toBeInTheDocument();
+        // H2 should NOT be there in compact mode
+        expect(screen.queryByText('Drop Save/Run Files Here')).not.toBeInTheDocument();
+    });
 });
