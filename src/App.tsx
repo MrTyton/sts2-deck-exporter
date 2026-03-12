@@ -99,6 +99,36 @@ function App() {
         }
     }, [selectedRunId, runs])
 
+    const formatTime = (seconds: number) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        if (h > 0) {
+            return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+        return `${m}:${s.toString().padStart(2, '0')}`;
+    };
+
+    const CopyButton = ({ text, label }: { text: string, label: string }) => {
+        const [copied, setCopied] = useState(false);
+
+        const handleCopy = () => {
+            navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        };
+
+        return (
+            <button
+                className={`copy-button ${copied ? 'copied' : ''}`}
+                onClick={handleCopy}
+                title={`Copy ${label} path`}
+            >
+                {copied ? 'Copied!' : 'Copy'}
+            </button>
+        );
+    };
+
     const handleDeckLoaded = useCallback((rawJsons: any | any[]) => {
         setIsSharedView(false);
         const jsonArray = Array.isArray(rawJsons) ? rawJsons : [rawJsons];
@@ -112,6 +142,7 @@ function App() {
 
             const ascension = rawJson.ascension || 0;
             const outcome = rawJson.win ? "Victory" : (rawJson.was_abandoned ? "Abandoned" : "Defeat");
+            const timeStr = rawJson.run_time ? formatTime(rawJson.run_time) : undefined;
 
             const playersData: PlayerRunData[] = rawJson.players.map((player: any) => {
                 const characterId = player.character;
@@ -132,7 +163,8 @@ function App() {
                 floor: runLengthStr,
                 ascension: ascension,
                 outcome: outcome,
-                characterName: combinedNames
+                characterName: combinedNames,
+                time: timeStr
             };
 
             return {
@@ -161,10 +193,16 @@ function App() {
                         <h2 style={{ marginBottom: '1rem', color: 'var(--accent-color)' }}>How to Use</h2>
                         <ul style={{ textAlign: 'left', marginBottom: '1.5rem', color: 'var(--text-primary)', lineHeight: '1.6', paddingLeft: '1.5rem' }}>
                             <li>
-                                Locate your Slay the Spire 2 save files:
-                                <ul>
-                                    <li><strong>Windows:</strong> <code>%AppData%\Roaming\SlayTheSpire2\steam\&lt;SteamID&gt;\&lt;profile&gt;\saves\history</code></li>
-                                    <li><strong>Mac:</strong> <code>~/Library/Application Support/Steam/userdata/&lt;SteamID&gt;/2868840/remote/&lt;profile&gt;/saves/history</code></li>
+                                Locate your Slay the Spire 2 save files (you can paste these into the file picker's address bar):
+                                <ul style={{ marginTop: '0.5rem', paddingLeft: '1.5rem' }}>
+                                    <li style={{ marginBottom: '0.4rem' }}>
+                                        <strong>Windows:</strong> <code>%AppData%\SlayTheSpire2\steam\&lt;SteamID&gt;\&lt;profile&gt;\saves\history</code>
+                                        <CopyButton text="%AppData%\SlayTheSpire2\steam\" label="Windows Path" />
+                                    </li>
+                                    <li style={{ marginBottom: '0.4rem' }}>
+                                        <strong>Mac:</strong> <code>~/Library/Application Support/Steam/userdata/&lt;SteamID&gt;/2868840/remote/&lt;profile&gt;/saves/history</code>
+                                        <CopyButton text="~/Library/Application Support/Steam/userdata/" label="Mac Path" />
+                                    </li>
                                 </ul>
                             </li>
                             <li>Upload one or multiple <code>.run</code> or <code>.backup</code> files.</li>

@@ -9,14 +9,15 @@
   --surface-border: rgba(255, 255, 255, 0.08);
   --text-primary: #ededed;
   --text-secondary: #90929c;
-  
-  --accent-color: #d6b251; /* Gold */
+
+  --accent-color: #d6b251;
+  /* Gold */
   --accent-glow: rgba(214, 178, 81, 0.3);
 
   --rarity-common: #8e8e8e;
   --rarity-uncommon: #5dc6e8;
   --rarity-rare: #e8bd5d;
-  
+
   --font-display: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
 }
@@ -57,7 +58,11 @@ body {
 }
 
 /* Typography */
-h1, h2, h3, h4, h5 {
+h1,
+h2,
+h3,
+h4,
+h5 {
   font-family: var(--font-display);
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -93,7 +98,7 @@ button {
 }
 
 .btn-secondary {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
   border: 1px solid var(--surface-border);
   padding: 12px 24px;
@@ -101,7 +106,7 @@ button {
 }
 
 .btn-secondary:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Scrollbar */
@@ -109,15 +114,18 @@ button {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
-  background: rgba(0,0,0,0.2);
+  background: rgba(0, 0, 0, 0.2);
 }
+
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.3);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Modals & Overlays */
@@ -145,8 +153,15 @@ button {
 }
 
 @keyframes modalFadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .modal-close {
@@ -165,6 +180,39 @@ button {
 .modal-close:hover {
   color: var(--text-primary);
   transform: scale(1.1);
+}
+
+.copy-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  border: 1px solid var(--surface-border);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+}
+
+.copy-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+}
+
+.copy-button.copied {
+  color: #4ade80;
+  border-color: #4ade80;
+}
+
+code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 
 .btn-info {
@@ -190,7 +238,7 @@ button {
 }
 
 .btn-info:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   color: var(--accent-color);
   border-color: var(--accent-color);
   transform: scale(1.05);

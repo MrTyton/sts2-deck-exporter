@@ -82,6 +82,11 @@ export function DeckVisualizer({ run }: DeckVisualizerProps) {
                             <span style={{ background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
                                 Floor <strong>{run.meta.floor}</strong>
                             </span>
+                            {run.meta.time && (
+                                <span style={{ background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                    Time: <strong>{run.meta.time}</strong>
+                                </span>
+                            )}
                         </div>
                     )}
                 </div>

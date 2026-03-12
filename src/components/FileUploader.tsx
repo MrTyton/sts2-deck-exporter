@@ -73,6 +73,41 @@ export function FileUploader({ onDeckLoaded }: FileUploaderProps) {
         }
     };
 
+    const handleSelectFiles = async () => {
+        // Use File System Access API if available
+        if ('showOpenFilePicker' in window) {
+            try {
+                const fileHandles = await (window as any).showOpenFilePicker({
+                    multiple: true,
+                    id: 'sts2-runs', // Remember the last directory for this specific picker
+                    types: [
+                        {
+                            description: 'Slay the Spire 2 Run/Save Files',
+                            accept: {
+                                'application/json': ['.run', '.backup', '.save']
+                            }
+                        }
+                    ]
+                });
+
+                const files = await Promise.all(fileHandles.map((handle: any) => handle.getFile()));
+                processFiles(files);
+            } catch (err: any) {
+                // User cancelled or other error
+                if (err.name !== 'AbortError') {
+                    console.error('File picker error:', err);
+                    // Fallback to traditional input if something went wrong
+                    const input = document.getElementById('file-upload');
+                    if (input) input.click();
+                }
+            }
+        } else {
+            // Fallback for browsers without File System Access API (like Firefox)
+            const input = document.getElementById('file-upload');
+            if (input) input.click();
+        }
+    };
+
     return (
         <div
             className={`glass-panel uploader ${isDragging ? 'dragging' : ''}`}
@@ -88,7 +123,7 @@ export function FileUploader({ onDeckLoaded }: FileUploaderProps) {
                 transition: 'all 0.3s ease',
                 cursor: 'pointer'
             }}
-            onClick={() => { const input = document.getElementById('file-upload'); if (input) input.click(); }}
+            onClick={handleSelectFiles}
         >
             <input
                 id="file-upload"

@@ -229,7 +229,7 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
                                         {run.meta?.characterName || 'Unknown'}
                                     </h3>
                                     <p style={{ margin: '0 0 0.25rem 0', fontWeight: 'bold', textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
-                                        A{run.meta?.ascension || 0} • Floor {run.meta?.floor || '?'}
+                                        A{run.meta?.ascension || 0} • Floor {run.meta?.floor || '?'}{run.meta?.time ? ` • ${run.meta.time}` : ''}
                                     </p>
                                     <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
                                         {run.meta?.outcome || 'Unknown'}

@@ -157,10 +157,63 @@ export async function generateDeckImage(run: RunData): Promise<HTMLCanvasElement
     drawY += 80;
 
     if (run.meta) {
-        ctx.fillStyle = '#ebecf0';
-        ctx.font = 'bold 36px sans-serif';
-        const runInfo = `A${run.meta.ascension} • ${run.meta.outcome}  |  Floor ${run.meta.floor}`;
-        ctx.fillText(runInfo, padding, drawY + 36);
+        const badges = [
+            `A${run.meta.ascension} • ${run.meta.outcome}`,
+            `Floor ${run.meta.floor}`
+        ];
+        if (run.meta.time) {
+            badges.push(`Time: ${run.meta.time}`);
+        }
+
+        ctx.font = '28px sans-serif';
+        const badgePaddingX = 20;
+        const badgePaddingY = 10;
+        const badgeGap = 16;
+        let badgeX = padding;
+
+        badges.forEach(text => {
+            // Calculate width and bold parts
+            const parts = text.split(/(\d+|A\d+|Time:\s|Floor\s)/);
+            let textWidth = 0;
+            parts.forEach(part => {
+                if (part.match(/^(\d+|A\d+)$/)) {
+                    ctx.font = 'bold 28px sans-serif';
+                } else {
+                    ctx.font = '28px sans-serif';
+                }
+                textWidth += ctx.measureText(part).width;
+            });
+
+            const badgeWidth = textWidth + (badgePaddingX * 2);
+            const badgeHeight = 28 + (badgePaddingY * 2);
+
+            // Draw badge background
+            ctx.fillStyle = 'rgba(255,255,255,0.05)';
+            ctx.beginPath();
+            ctx.roundRect(badgeX, drawY, badgeWidth, badgeHeight, 8);
+            ctx.fill();
+
+            // Draw badge border
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Draw text with bold parts
+            let currentTextX = badgeX + badgePaddingX;
+            parts.forEach(part => {
+                if (part.match(/^(\d+|A\d+)$/)) {
+                    ctx.font = 'bold 28px sans-serif';
+                } else {
+                    ctx.font = '28px sans-serif';
+                }
+                ctx.fillStyle = '#ebecf0';
+                ctx.fillText(part, currentTextX, drawY + badgePaddingY + 22);
+                currentTextX += ctx.measureText(part).width;
+            });
+
+            badgeX += badgeWidth + badgeGap;
+        });
+
         drawY += 60;
     }
 

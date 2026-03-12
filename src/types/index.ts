@@ -27,6 +27,7 @@ export interface ImageExportMeta {
     ascension?: string | number;
     outcome?: string;
     floor?: string | number;
+    time?: string;
     relics?: string[]; // Legacy/single player support
 }
 
