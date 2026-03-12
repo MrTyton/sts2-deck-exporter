@@ -6,6 +6,7 @@ import type { RunData, PlayerRunData } from './types'
 import { parseDeckArray } from './utils/deckParser'
 import { getCharacterName } from './utils/characterMapper'
 import { encodeRun, decodeRun } from './utils/deckEncoder'
+import { getSavedRunUIDs, saveRunUID, clearSavedRuns } from './utils/storage'
 
 function App() {
     const [isInfoOpen, setIsInfoOpen] = useState(false)
@@ -19,60 +20,88 @@ function App() {
         sortBy: 'date_desc'
     })
 
-    // On mount, check if there's a deck compressed in the URL hash
+    // On mount, check if there's a deck compressed in the URL hash AND load saved runs
     useEffect(() => {
         const hash = window.location.hash
-        if (!hash) return;
+        let initialRuns: RunData[] = [];
 
-        if (hash.startsWith('#d=')) {
-            // New bitpacked format
+        // 1. Load from storage first
+        const savedUIDs = getSavedRunUIDs();
+        savedUIDs.forEach(uid => {
             try {
-                const bitpacked = hash.substring(3);
-                const decoded = decodeRun(bitpacked);
-                if (decoded) {
-                    setRuns([decoded]);
-                    setSelectedRunId(0);
-                    setIsSharedView(true);
-                }
+                const decoded = decodeRun(uid);
+                if (decoded) initialRuns.push(decoded);
             } catch (err) {
-                console.error("Failed to decode bitpacked run:", err);
+                console.error("Failed to decode saved run:", err);
             }
-        } else if (hash.startsWith('#deck=')) {
-            // Legacy lz-string format
-            import('lz-string').then(lzString => {
+        });
+
+        // 2. Check hash
+        if (hash) {
+            if (hash.startsWith('#d=')) {
+                // New bitpacked format
                 try {
-                    const compressed = hash.substring(6)
-                    const decompressed = lzString.decompressFromEncodedURIComponent(compressed)
-                    if (decompressed) {
-                        const parsed = JSON.parse(decompressed)
-                        // Backwards compatibility if it's just an array
-                        if (Array.isArray(parsed)) {
-                            setRuns([{
-                                cards: parseDeckArray(parsed),
-                                meta: undefined
-                            }])
-                        } else if (parsed.players) {
-                            const fullPlayers = parsed.players.map((p: any) => ({
-                                ...p,
-                                cards: parseDeckArray(p.cards)
-                            }));
-                            setRuns([{
-                                players: fullPlayers,
-                                meta: parsed.meta
-                            }])
-                        } else {
-                            setRuns([{
-                                cards: parseDeckArray(parsed.deck),
-                                meta: parsed.meta
-                            }])
+                    const bitpacked = hash.substring(3);
+                    const decoded = decodeRun(bitpacked);
+                    if (decoded) {
+                        // Check if already in initialRuns to avoid dupes
+                        const alreadyStored = savedUIDs.includes(bitpacked);
+                        if (!alreadyStored) {
+                            initialRuns.push(decoded);
                         }
-                        setSelectedRunId(0) // view it directly
-                        setIsSharedView(true)
+                        setRuns(initialRuns);
+                        setSelectedRunId(initialRuns.indexOf(decoded));
+                        setIsSharedView(true);
+                        return;
                     }
                 } catch (err) {
-                    console.error("Failed to decode run data from legacy URL:", err)
+                    console.error("Failed to decode bitpacked run from hash:", err);
                 }
-            }).catch(err => console.error("Failed to load lz-string:", err))
+            } else if (hash.startsWith('#deck=')) {
+                // Legacy lz-string format
+                import('lz-string').then(lzString => {
+                    try {
+                        const compressed = hash.substring(6)
+                        const decompressed = lzString.decompressFromEncodedURIComponent(compressed)
+                        if (decompressed) {
+                            const parsed = JSON.parse(decompressed)
+                            let legacyRun: RunData;
+                            // Backwards compatibility if it's just an array
+                            if (Array.isArray(parsed)) {
+                                legacyRun = {
+                                    cards: parseDeckArray(parsed),
+                                    meta: undefined
+                                };
+                            } else if (parsed.players) {
+                                const fullPlayers = parsed.players.map((p: any) => ({
+                                    ...p,
+                                    cards: parseDeckArray(p.cards)
+                                }));
+                                legacyRun = {
+                                    players: fullPlayers,
+                                    meta: parsed.meta
+                                };
+                            } else {
+                                legacyRun = {
+                                    cards: parseDeckArray(parsed.deck),
+                                    meta: parsed.meta
+                                };
+                            }
+
+                            setRuns([...initialRuns, legacyRun]);
+                            setSelectedRunId(initialRuns.length); // view it directly
+                            setIsSharedView(true);
+                        }
+                    } catch (err) {
+                        console.error("Failed to decode run data from legacy URL:", err)
+                    }
+                }).catch(err => console.error("Failed to load lz-string:", err))
+                return;
+            }
+        }
+
+        if (initialRuns.length > 0) {
+            setRuns(initialRuns);
         }
     }, [])
 
@@ -128,7 +157,8 @@ function App() {
         setIsSharedView(false);
         const jsonArray = Array.isArray(rawJsons) ? rawJsons : [rawJsons];
 
-        const newRuns = jsonArray.map(rawJson => {
+        const newRuns: RunData[] = [];
+        jsonArray.forEach(rawJson => {
             let runLengthStr: string | number = "?";
             if (rawJson.map_point_history) {
                 let totalFloors = rawJson.map_point_history.reduce((acc: number, act: any[]) => acc + act.length, 0);
@@ -162,10 +192,22 @@ function App() {
                 time: timeStr
             };
 
-            return {
+            const run: RunData = {
                 players: playersData,
                 meta: metadata
             };
+
+            newRuns.push(run);
+
+            // Save to local storage
+            try {
+                const bitpacked = encodeRun(run);
+                if (bitpacked) {
+                    saveRunUID(bitpacked);
+                }
+            } catch (err) {
+                console.warn("Could not save run to local storage", err);
+            }
         });
 
         setRuns(prev => [...prev, ...newRuns]);
@@ -205,9 +247,13 @@ function App() {
                         </ul>
                         <div style={{ padding: '1rem', backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: '8px', borderLeft: '4px solid var(--text-secondary)' }}>
                             <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                                <strong>Privacy & Data:</strong> Your uploaded runs are stored locally on your computer using <code>localStorage</code>.
+                                No data is ever sent to a server. You can clear this data at any time by clicking "Clear All Runs" or by clearing your browser's site data.
+                            </p>
+                            <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                                 <strong>Disclaimer:</strong> This is a fan-made project and has no association with MegaCrit.
                             </p>
-                            <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>
+                            <p style={{ marginTop: '0.5rem', fontSize: '1rem' }}>
                                 <a
                                     href="https://store.steampowered.com/app/2868840/Slay_the_Spire_2/"
                                     target="_blank"
@@ -236,7 +282,10 @@ function App() {
                 ) : selectedRunId === null ? (
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
-                            <button className="btn-secondary" onClick={() => setRuns([])}>Clear All Runs</button>
+                            <button className="btn-secondary" onClick={() => {
+                                setRuns([]);
+                                clearSavedRuns();
+                            }}>Clear All Runs</button>
                         </div>
                         <Gallery
                             runs={runs}
