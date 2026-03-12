@@ -3,15 +3,19 @@ import { BitWriter, BitReader } from './bitstream';
 import { getCharacterName } from './characterMapper';
 import type { RunData, PlayerRunData, ImageExportMeta } from '../types';
 
-// Width Configuration
+// Width Configuration (Version 0)
+const V0_BITS_NUM_PLAYERS = 2;
+const V0_BITS_CHARACTER = 3;
+
+// Width Configuration (Version 1+)
+const V1_BITS_NUM_PLAYERS = 3;
+const V1_BITS_CHARACTER = 4;
+
 const BITS_VERSION = 3;
 const BITS_ASCENSION = 5;
 const BITS_FLOOR = 6;
 const BITS_OUTCOME = 2; // 0=Victory, 1=Defeat, 2=Abandoned, 3=Unknown
 const BITS_TIME = 16;   // Up to 65535 seconds (~18 hours)
-
-const BITS_NUM_PLAYERS = 2;
-const BITS_CHARACTER = 3;
 
 const BITS_NUM_RELICS = 6;
 const BITS_RELIC_ID = 11;
@@ -22,7 +26,7 @@ const BITS_UPGRADES = 1;
 const BITS_ENCHANTMENT_ID = 11;
 const BITS_COUNT = 4;
 
-const CURRENT_VERSION = 0;
+const CURRENT_VERSION = 1;
 
 export function encodeRun(run: RunData): string | null {
     try {
@@ -64,8 +68,8 @@ export function encodeRun(run: RunData): string | null {
             }];
         }
 
-        const numPlayers = Math.min(3, players.length);
-        writer.write(numPlayers, BITS_NUM_PLAYERS);
+        const numPlayers = Math.min(7, players.length); // Max 7 for 3 bits
+        writer.write(numPlayers, V1_BITS_NUM_PLAYERS);
 
         for (let i = 0; i < numPlayers; i++) {
             const p = players[i];
@@ -73,8 +77,8 @@ export function encodeRun(run: RunData): string | null {
             // Character
             const normalizedCharName = p.characterName.toLowerCase().replace(/^the\s+/, '');
             let charIdNum = charToNum[normalizedCharName];
-            if (charIdNum === undefined) charIdNum = 7;
-            writer.write(charIdNum, BITS_CHARACTER);
+            if (charIdNum === undefined) charIdNum = 15; // 15 is the new 'unknown' for 4 bits
+            writer.write(charIdNum, V1_BITS_CHARACTER);
 
             // Relics
             const relics = p.relics || [];
@@ -124,7 +128,7 @@ export function decodeRun(base64UrlStr: string): RunData | null {
         const reader = new BitReader(buffer);
 
         const version = reader.read(BITS_VERSION);
-        if (version !== 0) {
+        if (version > 1) {
             console.warn("Attempting to parse an unsupported version bitpacked deck: " + version);
         }
 
@@ -148,11 +152,14 @@ export function decodeRun(base64UrlStr: string): RunData | null {
             time
         };
 
-        const numPlayers = reader.read(BITS_NUM_PLAYERS);
+        const numPlayersBits = (version === 0) ? V0_BITS_NUM_PLAYERS : V1_BITS_NUM_PLAYERS;
+        const charBits = (version === 0) ? V0_BITS_CHARACTER : V1_BITS_CHARACTER;
+
+        const numPlayers = reader.read(numPlayersBits);
         const players: PlayerRunData[] = [];
 
         for (let i = 0; i < numPlayers; i++) {
-            const charIdNum = reader.read(BITS_CHARACTER);
+            const charIdNum = reader.read(charBits);
             const rawCharName = numToChar[charIdNum];
             const characterName = getCharacterName(rawCharName) || 'Unknown';
 

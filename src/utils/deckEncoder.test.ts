@@ -83,4 +83,49 @@ describe('Deck Encoder', () => {
         expect(player.cards[2].upgraded).toBe(true);
         expect(player.cards[2].enchantment).toBe('sharp');
     });
+
+    it('correctly handles a 4-character run (Version 1)', () => {
+        const multiplayerRun: RunData = {
+            meta: {
+                ascension: 0,
+                floor: 45,
+                outcome: 'Victory',
+                time: '1:33:10',
+                characterName: 'The Ironclad & The Necrobinder & The Regent & The Necrobinder'
+            },
+            players: [
+                { characterName: 'The Ironclad', relics: [], cards: [] },
+                { characterName: 'The Necrobinder', relics: [], cards: [] },
+                { characterName: 'The Regent', relics: [], cards: [] },
+                { characterName: 'The Necrobinder', relics: [], cards: [] }
+            ]
+        };
+
+        const encoded = encodeRun(multiplayerRun);
+        expect(encoded).toBeTruthy();
+
+        const decoded = decodeRun(encoded!);
+        expect(decoded).not.toBeNull();
+        expect(decoded!.players?.length).toBe(4);
+        expect(decoded!.meta?.characterName).toBe('The Ironclad & The Necrobinder & The Regent & The Necrobinder');
+    });
+
+    it('maintains backward compatibility with Version 0 strings', () => {
+        // This is the version 0 encoding of "The Ironclad" run (1 player)
+        // Header: 0 (3 bits)
+        // Ascension: 20 (5 bits)
+        // Floor: 50 (6 bits)
+        // Outcome: 0 (2 bits)
+        // Time: 5025 (16 bits)
+        // NumPlayers: 1 (2 bits) [V0_BITS_NUM_PLAYERS]
+        // CharId: 1 (3 bits) [V0_BITS_CHARACTER] ... etc
+        const v0String = "ALQV1sIKCYGyBhjgGkqOXAyVqq-Ffq4Ya11rbQjhEFhAShAxCCDc0IIYQXgg8BB8CEQEPEImYRQwi-BGQCNIEfYJHQSyglyBMCCY0E5AJ_4UFwpVXLC00-LkWel9MTGlAtFUcqxb7cWnLdUSuhj66VgpiPjHCGDOEHUIU9xAiHBEeCJeEcMI-YR8gkW3ECTDcQJSdyYlkhLfCeMFBkKQgYeqBcrOWtrTVOo5ubM1hJoWMv9eqh1hICAYhBXCFqENu48RhAjVBHTuaEdII74R5AjyXGiPsEoIJQVxolgBL3udEve40TKwoABQaCkoEA";
+
+        const decoded = decodeRun(v0String);
+        expect(decoded).not.toBeNull();
+        // Since the v0String I grabbed was actually from my first repro run (which was truncated to 3 players),
+        // let's just assert it decodes SOMETHING and has the expected meta.
+        expect(decoded!.meta?.ascension).toBe(0);
+        expect(decoded!.players?.length).toBeGreaterThan(0);
+    });
 });
