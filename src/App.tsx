@@ -5,6 +5,7 @@ import { Gallery } from './components/Gallery'
 import type { RunData, PlayerRunData } from './types'
 import { parseDeckArray } from './utils/deckParser'
 import { getCharacterName } from './utils/characterMapper'
+import { encodeRun, decodeRun } from './utils/deckEncoder'
 
 function App() {
     const [isInfoOpen, setIsInfoOpen] = useState(false)
@@ -21,7 +22,23 @@ function App() {
     // On mount, check if there's a deck compressed in the URL hash
     useEffect(() => {
         const hash = window.location.hash
-        if (hash && hash.startsWith('#deck=')) {
+        if (!hash) return;
+
+        if (hash.startsWith('#d=')) {
+            // New bitpacked format
+            try {
+                const bitpacked = hash.substring(3);
+                const decoded = decodeRun(bitpacked);
+                if (decoded) {
+                    setRuns([decoded]);
+                    setSelectedRunId(0);
+                    setIsSharedView(true);
+                }
+            } catch (err) {
+                console.error("Failed to decode bitpacked run:", err);
+            }
+        } else if (hash.startsWith('#deck=')) {
+            // Legacy lz-string format
             import('lz-string').then(lzString => {
                 try {
                     const compressed = hash.substring(6)
@@ -53,7 +70,7 @@ function App() {
                         setIsSharedView(true)
                     }
                 } catch (err) {
-                    console.error("Failed to decode run data from URL:", err)
+                    console.error("Failed to decode run data from legacy URL:", err)
                 }
             }).catch(err => console.error("Failed to load lz-string:", err))
         }
@@ -63,39 +80,17 @@ function App() {
     useEffect(() => {
         if (selectedRunId !== null && runs[selectedRunId]) {
             const run = runs[selectedRunId]
-            import('lz-string').then(lzString => {
-                try {
-                    let payload: any = {};
-                    if (run.players) {
-                        const minimalPlayers = run.players.map(p => ({
-                            characterName: p.characterName,
-                            relics: p.relics,
-                            cards: p.cards.map(c => ({
-                                id: c.id,
-                                upgrades: c.upgrades || 0,
-                                enchantmentId: c.enchantment || null,
-                                count: c.count
-                            }))
-                        }));
-                        payload = { players: minimalPlayers, meta: run.meta };
-                    } else if (run.cards) {
-                        const minimalDeck = run.cards.map(c => ({
-                            id: c.id,
-                            upgrades: c.upgrades || 0,
-                            enchantmentId: c.enchantment || null,
-                            count: c.count
-                        }));
-                        payload = { deck: minimalDeck, meta: run.meta };
-                    }
-                    const compressed = lzString.compressToEncodedURIComponent(JSON.stringify(payload))
-                    window.history.replaceState(null, '', `#deck=${compressed}`)
-                } catch (err) {
-                    console.warn("Could not generate share URL", err)
+            try {
+                const bitpacked = encodeRun(run);
+                if (bitpacked) {
+                    window.history.replaceState(null, '', `#d=${bitpacked}`);
                 }
-            }).catch(err => console.warn("Failed to load lz-string:", err))
+            } catch (err) {
+                console.warn("Could not generate share URL", err);
+            }
         } else {
             // clear hash if back in gallery
-            window.history.replaceState(null, '', ' ')
+            window.history.replaceState(null, '', ' ');
         }
     }, [selectedRunId, runs])
 

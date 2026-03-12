@@ -7,6 +7,7 @@ const BITS_VERSION = 3;
 const BITS_ASCENSION = 5;
 const BITS_FLOOR = 6;
 const BITS_OUTCOME = 2; // 0=Victory, 1=Defeat, 2=Abandoned, 3=Unknown
+const BITS_TIME = 16;   // Up to 65535 seconds (~18 hours)
 
 const BITS_NUM_PLAYERS = 2;
 const BITS_CHARACTER = 3;
@@ -18,7 +19,7 @@ const BITS_NUM_CARDS = 6;
 const BITS_CARD_ID = 11;
 const BITS_UPGRADES = 1;
 const BITS_HAS_ENCHANTMENT = 1;
-const BITS_ENCHANTMENT_ID = 6;
+const BITS_ENCHANTMENT_ID = 11;
 const BITS_COUNT = 4;
 
 const CURRENT_VERSION = 0;
@@ -34,18 +35,24 @@ export function encodeRun(run: RunData): string | null {
         let ascension = 0;
         let floor = 0;
         let outcomeNum = 3;
+        let timeSeconds = 0;
 
         if (run.meta) {
-            ascension = Math.min(31, parseInt(run.meta.ascension as string || '0', 10));
-            floor = Math.min(63, run.meta.floor === '?' ? 0 : parseInt(run.meta.floor as string || '0', 10));
+            ascension = Math.min(31, parseInt(String(run.meta.ascension || '0'), 10));
+            floor = Math.min(63, run.meta.floor === '?' ? 0 : parseInt(String(run.meta.floor || '0'), 10));
             if (run.meta.outcome === 'Victory') outcomeNum = 0;
             else if (run.meta.outcome === 'Defeat') outcomeNum = 1;
             else if (run.meta.outcome === 'Abandoned') outcomeNum = 2;
+
+            if (run.meta.time) {
+                timeSeconds = Math.min(65535, parseTimeToSeconds(run.meta.time));
+            }
         }
 
         writer.write(ascension, BITS_ASCENSION);
         writer.write(floor, BITS_FLOOR);
         writer.write(outcomeNum, BITS_OUTCOME);
+        writer.write(timeSeconds, BITS_TIME);
 
         // Normalize players vs legacy single run format
         let players: PlayerRunData[] = run.players || [];
@@ -57,7 +64,7 @@ export function encodeRun(run: RunData): string | null {
             }];
         }
 
-        const numPlayers = Math.min(3, players.length); // Max 3 theoretically, game supports up to maybe 2
+        const numPlayers = Math.min(3, players.length);
         writer.write(numPlayers, BITS_NUM_PLAYERS);
 
         for (let i = 0; i < numPlayers; i++) {
@@ -65,7 +72,7 @@ export function encodeRun(run: RunData): string | null {
 
             // Character
             let charIdNum = charToNum[p.characterName.toLowerCase()];
-            if (charIdNum === undefined) charIdNum = 7; // Unknown char or overflow
+            if (charIdNum === undefined) charIdNum = 7;
             writer.write(charIdNum, BITS_CHARACTER);
 
             // Relics
@@ -100,7 +107,6 @@ export function encodeRun(run: RunData): string | null {
             }
         }
 
-        // Convert Uint8Array to Base64Url
         const buffer = writer.getUint8Array();
         return arrayBufferToBase64Url(buffer);
 
@@ -119,10 +125,8 @@ export function decodeRun(base64UrlStr: string): RunData | null {
         const version = reader.read(BITS_VERSION);
         if (version !== 0) {
             console.warn("Attempting to parse an unsupported version bitpacked deck: " + version);
-            // Could choose to throw or attempt anyway
         }
 
-        // Meta Block
         const ascension = reader.read(BITS_ASCENSION);
         const floorNum = reader.read(BITS_FLOOR);
         const floor = floorNum === 0 ? '?' : floorNum;
@@ -133,10 +137,14 @@ export function decodeRun(base64UrlStr: string): RunData | null {
         else if (outcomeNum === 1) outcome = 'Defeat';
         else if (outcomeNum === 2) outcome = 'Abandoned';
 
+        const timeSeconds = reader.read(BITS_TIME);
+        const time = formatSecondsToTime(timeSeconds);
+
         let meta: ImageExportMeta = {
             ascension,
             floor,
-            outcome
+            outcome,
+            time
         };
 
         const numPlayers = reader.read(BITS_NUM_PLAYERS);
@@ -203,12 +211,38 @@ export function decodeRun(base64UrlStr: string): RunData | null {
     }
 }
 
-function arrayBufferToBase64Url(buffer: Uint8Array): string {
-    let binary = '';
-    for (let i = 0; i < buffer.byteLength; i++) {
-        binary += String.fromCharCode(buffer[i]);
+function parseTimeToSeconds(timeStr: string): number {
+    const parts = timeStr.split(':').map(Number);
+    if (parts.length === 3) {
+        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    } else if (parts.length === 2) {
+        return parts[0] * 60 + parts[1];
     }
-    const base64 = typeof btoa === 'function' ? btoa(binary) : Buffer.from(binary, 'binary').toString('base64');
+    return isNaN(parts[0]) ? 0 : parts[0];
+}
+
+function formatSecondsToTime(totalSeconds: number): string {
+    if (totalSeconds === 0) return '';
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+
+    if (h > 0) {
+        return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function arrayBufferToBase64Url(uint8Array: Uint8Array): string {
+    let binary = '';
+    const len = uint8Array.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+    }
+    // Using a safe fallback for btoa
+    const base64 = (typeof btoa !== 'undefined')
+        ? btoa(binary)
+        : Buffer.from(binary, 'binary').toString('base64');
     return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
@@ -217,7 +251,9 @@ function base64UrlToArrayBuffer(base64url: string): Uint8Array {
     while (base64.length % 4 !== 0) {
         base64 += '=';
     }
-    const binary = typeof atob === 'function' ? atob(base64) : Buffer.from(base64, 'base64').toString('binary');
+    const binary = (typeof atob !== 'undefined')
+        ? atob(base64)
+        : Buffer.from(base64, 'base64').toString('binary');
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
         bytes[i] = binary.charCodeAt(i);

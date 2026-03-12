@@ -1,129 +1,84 @@
 export class BitWriter {
     private bytes: number[] = [];
-    private currentByte: number = 0;
-    private bitsInCurrentByte: number = 0;
+    private buffer: number = 0; // 32-bit buffer
+    private count: number = 0;  // number of bits in buffer
 
     /**
      * Write an integer `value` using exactly `numBits`.
      */
     write(value: number, numBits: number) {
+        if (numBits === 0) return;
+
         // Mask the value to ensure it fits in numBits
-        const mask = (1 << numBits) - 1;
-        value = value & mask;
+        const mask = numBits >= 32 ? 0xffffffff : (1 << numBits) - 1;
+        value = (value & mask) >>> 0; // Ensure unsigned 32-bit
 
-        let bitsLeftToWrite = numBits;
+        // Add to buffer
+        // We fill the buffer from left to right (top bits first)
+        // This is easier if we just maintain 'count' bits and push out from the top
+        for (let i = numBits - 1; i >= 0; i--) {
+            const bit = (value >>> i) & 1;
+            this.buffer = (this.buffer << 1) | bit;
+            this.count++;
 
-        while (bitsLeftToWrite > 0) {
-            const spaceInCurrent = 8 - this.bitsInCurrentByte;
-
-            if (bitsLeftToWrite <= spaceInCurrent) {
-                // We can fit all remaining bits in the current byte
-                // Shift them up to their position
-                this.currentByte |= (value << (spaceInCurrent - bitsLeftToWrite));
-                this.bitsInCurrentByte += bitsLeftToWrite;
-                bitsLeftToWrite = 0;
-            } else {
-                // We need to write across a byte boundary
-                const bitsToWriteToCurrent = spaceInCurrent;
-                const bitsLeftOver = bitsLeftToWrite - bitsToWriteToCurrent;
-
-                // Shift down so only the top bits fit in the current byte
-                const topBits = (value >>> bitsLeftOver) & ((1 << bitsToWriteToCurrent) - 1);
-                this.currentByte |= topBits;
-
-                this.flush();
-                bitsLeftToWrite = bitsLeftOver;
-                // Keep only the remaining bits in `value`
-                value &= (1 << bitsLeftToWrite) - 1;
-            }
-
-            if (this.bitsInCurrentByte === 8) {
-                this.flush();
+            if (this.count === 8) {
+                this.bytes.push(this.buffer & 0xff);
+                this.buffer = 0;
+                this.count = 0;
             }
         }
     }
 
-    /**
-     * Write a boolean as 1 bit
-     */
     writeBool(value: boolean) {
         this.write(value ? 1 : 0, 1);
     }
 
-    private flush() {
-        if (this.bitsInCurrentByte > 0) {
-            this.bytes.push(this.currentByte);
-            this.currentByte = 0;
-            this.bitsInCurrentByte = 0;
-        }
-    }
-
     getUint8Array(): Uint8Array {
-        // Flush any trailing bits aligned to the top
-        if (this.bitsInCurrentByte > 0) {
-            this.bytes.push(this.currentByte);
+        if (this.count > 0) {
+            // Shift remaining bits to the left to align with byte boundary
+            const finalByte = (this.buffer << (8 - this.count)) & 0xff;
+            this.bytes.push(finalByte);
+            this.buffer = 0;
+            this.count = 0;
         }
-        return new Uint8Array(this.bytes);
+        const arr = new Uint8Array(this.bytes);
+        this.bytes = [];
+        return arr;
     }
 }
 
 export class BitReader {
     private bytes: Uint8Array;
     private byteIndex: number = 0;
-    private bitIndex: number = 0;
+    private bitIndex: number = 0; // 0 to 7, from MSB to LSB
 
     constructor(bytes: Uint8Array) {
         this.bytes = bytes;
     }
 
-    /**
-     * Read an integer value from the next `numBits`
-     */
     read(numBits: number): number {
+        if (numBits === 0) return 0;
+
         let result = 0;
-        let bitsLeftToRead = numBits;
-
-        while (bitsLeftToRead > 0) {
+        for (let i = 0; i < numBits; i++) {
             if (this.byteIndex >= this.bytes.length) {
-                // End of stream, return what we have so far
-                // In a perfect system this wouldn't trigger unless corrupted
-                return result << bitsLeftToRead;
+                // End of stream
+                return result << (numBits - i);
             }
 
-            const bitsAvailableInCurrent = 8 - this.bitIndex;
             const currentByte = this.bytes[this.byteIndex];
+            const bit = (currentByte >>> (7 - this.bitIndex)) & 1;
 
-            if (bitsLeftToRead <= bitsAvailableInCurrent) {
-                // We can read all remaining bits from this byte
-                // Shift down to drop the trailing bits we don't need
-                const shiftDown = bitsAvailableInCurrent - bitsLeftToRead;
-                const mask = ((1 << bitsLeftToRead) - 1) << shiftDown;
-                const extracted = (currentByte & mask) >>> shiftDown;
+            result = (result << 1) | bit;
 
-                result = (result << bitsLeftToRead) | extracted;
-                this.bitIndex += bitsLeftToRead;
-                bitsLeftToRead = 0;
-            } else {
-                // We need more bits than this byte has left
-                // Take all remaining bits in this byte
-                const mask = (1 << bitsAvailableInCurrent) - 1;
-                const extracted = currentByte & mask;
-
-                result = (result << bitsAvailableInCurrent) | extracted;
-
-                // Move to next byte
-                this.byteIndex++;
-                this.bitIndex = 0;
-                bitsLeftToRead -= bitsAvailableInCurrent;
-            }
-
+            this.bitIndex++;
             if (this.bitIndex === 8) {
                 this.byteIndex++;
                 this.bitIndex = 0;
             }
         }
 
-        return result;
+        return result >>> 0; // Ensure unsigned
     }
 
     readBool(): boolean {
