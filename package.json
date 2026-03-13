@@ -22,7 +22,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "extract-data": "tsx src/scripts/extractGameData.ts"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

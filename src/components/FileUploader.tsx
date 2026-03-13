@@ -74,38 +74,13 @@ export function FileUploader({ onDeckLoaded, compact = false }: FileUploaderProp
         }
     };
 
-    const handleSelectFiles = async () => {
-        // Use File System Access API if available
-        if ('showOpenFilePicker' in window) {
-            try {
-                const fileHandles = await (window as any).showOpenFilePicker({
-                    multiple: true,
-                    id: 'sts2-runs', // Remember the last directory for this specific picker
-                    types: [
-                        {
-                            description: 'Slay the Spire 2 Run/Save Files',
-                            accept: {
-                                'application/json': ['.run', '.backup', '.save']
-                            }
-                        }
-                    ]
-                });
-
-                const files = await Promise.all(fileHandles.map((handle: any) => handle.getFile()));
-                processFiles(files);
-            } catch (err: any) {
-                // User cancelled or other error
-                if (err.name !== 'AbortError') {
-                    console.error('File picker error:', err);
-                    // Fallback to traditional input if something went wrong
-                    const input = document.getElementById('file-upload');
-                    if (input) input.click();
-                }
-            }
-        } else {
-            // Fallback for browsers without File System Access API (like Firefox)
-            const input = document.getElementById('file-upload');
-            if (input) input.click();
+    const handleSelectFiles = () => {
+        // Trigger the traditional file input
+        // This is more compatible than showOpenFilePicker which blocks "system" folders like Program Files
+        const input = document.getElementById('file-upload');
+        if (input) {
+            (input as HTMLInputElement).value = ''; // Reset to allow re-selecting same file
+            input.click();
         }
     };
 
