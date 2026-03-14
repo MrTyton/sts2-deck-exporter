@@ -23,11 +23,13 @@ const BITS_RELIC_ID = 11;
 
 const BITS_NUM_CARDS = 6;
 const BITS_CARD_ID = 11;
-const BITS_UPGRADES = 1;
+const BITS_UPGRADES = 1;           // v0-v2: 1-bit upgraded boolean
+const BITS_UPGRADE_LEVEL = 4;      // v3+:  0-15 upgrade level
 const BITS_ENCHANTMENT_ID = 11;
+const BITS_ENCHANTMENT_AMOUNT = 5; // v3+:  0-31 enchantment amount
 const BITS_COUNT = 4;
 
-const CURRENT_VERSION = 2;
+const CURRENT_VERSION = 3;
 
 export function encodeRun(run: RunData): string | null {
     try {
@@ -100,12 +102,15 @@ export function encodeRun(run: RunData): string | null {
                 let cNum = idToNum[card.id.toLowerCase()];
                 writer.write(cNum || 0, BITS_CARD_ID);
 
-                writer.write(card.upgraded ? 1 : 0, BITS_UPGRADES);
+                // v3: store full upgrade level (0-15) instead of a 1-bit bool
+                writer.write(Math.min(15, card.upgrades ?? (card.upgraded ? 1 : 0)), BITS_UPGRADE_LEVEL);
 
                 if (card.enchantment) {
                     writer.writeBool(true);
                     let eNum = idToNum[card.enchantment.toLowerCase()];
                     writer.write(eNum || 0, BITS_ENCHANTMENT_ID);
+                    // v3: store enchantment amount so the tooltip shows the correct value
+                    writer.write(Math.min(31, card.enchantmentAmount ?? 1), BITS_ENCHANTMENT_AMOUNT);
                 } else {
                     writer.writeBool(false);
                 }
@@ -130,7 +135,7 @@ export function decodeRun(base64UrlStr: string): RunData | null {
         const reader = new BitReader(buffer);
 
         const version = reader.read(BITS_VERSION);
-        if (version > 1) {
+        if (version > CURRENT_VERSION) {
             console.warn("Attempting to parse an unsupported version bitpacked deck: " + version);
         }
 
@@ -185,13 +190,26 @@ export function decodeRun(base64UrlStr: string): RunData | null {
                 const cNum = reader.read(BITS_CARD_ID);
                 const id = numToId[cNum] || 'unknown';
 
-                const upgraded = reader.read(BITS_UPGRADES) === 1;
+                // v3+: full upgrade level; v0-v2: 1-bit bool
+                let upgraded: boolean;
+                let upgrades: number;
+                if (version >= 3) {
+                    upgrades = reader.read(BITS_UPGRADE_LEVEL);
+                    upgraded = upgrades > 0;
+                } else {
+                    upgraded = reader.read(BITS_UPGRADES) === 1;
+                    upgrades = upgraded ? 1 : 0;
+                }
+
                 const hasEnchantment = reader.readBool();
                 let enchantment: string | null = null;
+                let enchantmentAmount: number | undefined = undefined;
 
                 if (hasEnchantment) {
                     const eNum = reader.read(BITS_ENCHANTMENT_ID);
                     enchantment = numToId[eNum] || null;
+                    // v3+: enchantment amount is encoded; older versions default to 1
+                    enchantmentAmount = version >= 3 ? reader.read(BITS_ENCHANTMENT_AMOUNT) : 1;
                 }
 
                 const count = reader.read(BITS_COUNT);
@@ -200,8 +218,9 @@ export function decodeRun(base64UrlStr: string): RunData | null {
                     id,
                     count,
                     upgraded,
-                    upgrades: upgraded ? 1 : 0,
-                    enchantment
+                    upgrades,
+                    enchantment,
+                    enchantmentAmount,
                 });
             }
 

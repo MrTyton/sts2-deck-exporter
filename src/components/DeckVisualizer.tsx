@@ -1,6 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { generateDeckImage } from '../utils/canvasExport';
 import { formatCardName } from '../utils/cardUtils';
+import { Tooltip } from './Tooltip';
+import { getCardTooltip, getRelicTooltip } from '../utils/tooltipUtils';
+import type { TooltipContent } from '../utils/tooltipUtils';
 import type { CardData, RunData } from '../types';
 
 export interface DeckVisualizerProps {
@@ -11,6 +14,33 @@ export function DeckVisualizer({ run }: DeckVisualizerProps) {
     const exportRef = useRef<HTMLDivElement>(null);
     const [copyImageText, setCopyImageText] = useState('Copy Image');
     const [copyLinkText, setCopyLinkText] = useState('Copy Share Link');
+
+    // ── Tooltip state ────────────────────────────────────────────────────────
+    const [tooltipContent, setTooltipContent] = useState<TooltipContent | null>(null);
+    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+    const [tooltipVisible, setTooltipVisible] = useState(false);
+
+    const showCardTooltip = useCallback((e: React.MouseEvent, card: CardData) => {
+        const content = getCardTooltip(card.id, card.upgraded, card.upgrades, card.enchantment, card.enchantmentAmount);
+        setTooltipContent(content);
+        setTooltipPos({ x: e.clientX, y: e.clientY });
+        setTooltipVisible(true);
+    }, []);
+
+    const showRelicTooltip = useCallback((e: React.MouseEvent, relicId: string) => {
+        const content = getRelicTooltip(relicId);
+        setTooltipContent(content);
+        setTooltipPos({ x: e.clientX, y: e.clientY });
+        setTooltipVisible(true);
+    }, []);
+
+    const updateTooltipPos = useCallback((e: React.MouseEvent) => {
+        setTooltipPos({ x: e.clientX, y: e.clientY });
+    }, []);
+
+    const hideTooltip = useCallback(() => {
+        setTooltipVisible(false);
+    }, []);
 
     const handleExport = async () => {
         try {
@@ -62,6 +92,7 @@ export function DeckVisualizer({ run }: DeckVisualizerProps) {
     }];
 
     return (
+        <>
         <div className="deck-visualizer">
             <div className="controls-panel glass-panel" style={{ padding: '1rem 2rem', marginBottom: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
                 <button className="btn-secondary" onClick={copyUrl}>{copyLinkText}</button>
@@ -107,7 +138,13 @@ export function DeckVisualizer({ run }: DeckVisualizerProps) {
                                 <h4 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>Relics</h4>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
                                     {player.relics.map((relic, idx) => (
-                                        <div key={idx} style={{ width: '56px', height: '56px', background: 'rgba(0,0,0,0.4)', borderRadius: '8px', padding: '4px', border: '1px solid var(--surface-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={relic.replace(/_/g, ' ')}>
+                                        <div
+                                            key={idx}
+                                            style={{ width: '56px', height: '56px', background: 'rgba(0,0,0,0.4)', borderRadius: '8px', padding: '4px', border: '1px solid var(--surface-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'default' }}
+                                            onMouseEnter={(e) => showRelicTooltip(e, relic)}
+                                            onMouseMove={updateTooltipPos}
+                                            onMouseLeave={hideTooltip}
+                                        >
                                             <img
                                                 src={`${import.meta.env.BASE_URL}assets/relics/${relic}.webp`}
                                                 alt={relic}
@@ -131,7 +168,14 @@ export function DeckVisualizer({ run }: DeckVisualizerProps) {
                             padding: '1rem 0'
                         }}>
                             {player.cards.map((card: CardData, index: number) => (
-                                <div key={card.id + index} className="card-wrapper" style={{ position: 'relative', width: '100%', aspectRatio: '1/1', borderRadius: '12px', overflow: 'hidden' }}>
+                                <div
+                                    key={card.id + index}
+                                    className="card-wrapper"
+                                    style={{ position: 'relative', width: '100%', aspectRatio: '1/1', borderRadius: '12px', overflow: 'hidden', cursor: 'default' }}
+                                    onMouseEnter={(e) => showCardTooltip(e, card)}
+                                    onMouseMove={updateTooltipPos}
+                                    onMouseLeave={hideTooltip}
+                                >
                                     <img
                                         src={`${import.meta.env.BASE_URL}assets/portraits/${card.id}.webp`}
                                         alt={card.id}
@@ -208,5 +252,15 @@ export function DeckVisualizer({ run }: DeckVisualizerProps) {
                 ))}
             </div>
         </div>
+
+        {tooltipContent && (
+            <Tooltip
+                content={tooltipContent}
+                x={tooltipPos.x}
+                y={tooltipPos.y}
+                visible={tooltipVisible}
+            />
+        )}
+        </>
     );
 }

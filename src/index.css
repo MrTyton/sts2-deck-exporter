@@ -20,6 +20,17 @@
 
   --font-display: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
+
+  /* Tooltip tag colours (match in-game palette) */
+  --tooltip-gold:     #d6b251;
+  --tooltip-blue:     #69c0f5;
+  --tooltip-green:    #5bc47d;
+  --tooltip-red:      #e05555;
+  --tooltip-value:    #69c0f5;   /* plain numeric value */
+  --tooltip-upgraded: #ffd166;   /* value that changed on upgrade */
+  --tooltip-energy:   #c8860a;   /* energy orb colour */
+  --tooltip-star:     #d6b251;   /* star icon colour */
+  --tooltip-purple:   #c49af5;   /* string var (enchantment names, etc.) */
 }
 
 * {
@@ -242,4 +253,149 @@ code {
   color: var(--accent-color);
   border-color: var(--accent-color);
   transform: scale(1.05);
+}
+
+/* ── Card / Relic Tooltip ─────────────────────────────────────────────────── */
+
+.card-tooltip {
+  background: linear-gradient(160deg, #1a1e2a 0%, #111420 100%);
+  border: 1px solid rgba(214, 178, 81, 0.35);
+  border-radius: 10px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 2px 16px rgba(214, 178, 81, 0.08);
+  padding: 12px 14px;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  pointer-events: none;
+  user-select: none;
+  animation: tooltipFadeIn 0.12s ease-out forwards;
+}
+
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-tooltip__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.card-tooltip__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--accent-color);
+  line-height: 1.2;
+  flex: 1;
+}
+
+.card-tooltip__badges {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.card-tooltip__cost {
+  background: rgba(214, 178, 81, 0.15);
+  border: 1px solid rgba(214, 178, 81, 0.4);
+  color: var(--accent-color);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-tooltip__type {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.card-tooltip__divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(214, 178, 81, 0.25), transparent);
+  margin: 8px 0;
+}
+
+.card-tooltip__divider--thin {
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.08), transparent);
+}
+
+.card-tooltip__desc {
+  margin: 0 0 4px;
+  color: var(--text-primary);
+  line-height: 1.55;
+}
+
+.card-tooltip__enchant {
+  margin-top: 8px;
+  background: rgba(214, 178, 81, 0.07);
+  border: 1px solid rgba(214, 178, 81, 0.2);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.card-tooltip__enchant-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--tooltip-gold);
+  display: block;
+  margin-bottom: 3px;
+}
+
+.card-tooltip__enchant-desc {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.card-tooltip__flavor {
+  margin: 0;
+  font-style: italic;
+  font-size: 0.77rem;
+  color: var(--text-secondary);
+  opacity: 0.75;
+  line-height: 1.45;
+}
+
+.card-tooltip__energy-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #f5c53a, #c8860a 70%);
+  border: 1px solid #f0b030;
+  vertical-align: middle;
+  margin: 0 1px;
+  position: relative;
+  top: -1px;
+  flex-shrink: 0;
+}
+
+.card-tooltip__star-icon {
+  color: var(--tooltip-star);
+  font-size: 13px;
+  vertical-align: middle;
 }

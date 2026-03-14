@@ -20,6 +20,7 @@ export function parseDeckArray(rawDeckArray: RawCardData[]): CardData[] {
 
         // Check for enchantments
         let enchantment = cardData.enchantment ? cardData.enchantment.id : (cardData.enchantmentId || null);
+        const enchantmentAmount: number | undefined = cardData.enchantment?.amount;
         if (enchantment && enchantment.startsWith("ENCHANTMENT.")) {
             enchantment = enchantment.substring(12);
         }
@@ -35,7 +36,8 @@ export function parseDeckArray(rawDeckArray: RawCardData[]): CardData[] {
                 count: countToAdd,
                 upgraded: upgrades > 0 || id.includes('+'),
                 upgrades: upgrades,
-                enchantment: enchantment
+                enchantment: enchantment,
+                enchantmentAmount: enchantmentAmount,
             };
             cardCounts[uniqueKey] = newCard;
             cards.push(newCard);

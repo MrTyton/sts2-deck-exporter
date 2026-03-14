@@ -4,6 +4,7 @@ export interface CardData {
     upgraded: boolean;
     upgrades: number;
     enchantment: string | null;
+    enchantmentAmount?: number;
 }
 
 export interface RawCardData {
@@ -11,7 +12,7 @@ export interface RawCardData {
     floor_added_to_deck?: number;
     current_upgrade_level?: number;
     upgrades?: number;
-    enchantment?: { id: string };
+    enchantment?: { id: string; amount?: number };
     enchantmentId?: string;
     count?: number;
 }

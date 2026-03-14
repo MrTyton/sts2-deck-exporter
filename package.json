@@ -23,7 +23,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "extract-data": "tsx src/scripts/extractGameData.ts"
+    "extract-data": "tsx src/scripts/extractGameData.ts",
+    "extract-values": "python extraction_tools/extract_card_values.py"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
