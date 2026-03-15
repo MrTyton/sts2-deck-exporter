@@ -31,6 +31,10 @@ export interface PlayerRunData {
     characterName: string;
     cards: CardData[];
     relics?: string[];
+    /** Steam64 ID from the raw JSON 'id' field, stored as a string to avoid ulong precision loss. Only present on freshly-parsed runs. */
+    netId?: string;
+    /** True when this player has been identified as the local player (the file owner). */
+    isLocalPlayer?: boolean;
 }
 
 export interface ImageExportMeta {

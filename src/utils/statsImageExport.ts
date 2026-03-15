@@ -72,6 +72,8 @@ export interface StatsSnapshot {
     topCardsByChar: Array<{ charName: string; cards: StatsTopCard[] }>;
     topWinRelics: StatsTopRelic[];
     topAllRelics: StatsTopRelic[];
+    /** True when at least one co-op run fell back to the host's character because the local player could not be identified. */
+    multiplayerFallback?: boolean;
 }
 
 // ── Formatting helpers ────────────────────────────────────────────────────────

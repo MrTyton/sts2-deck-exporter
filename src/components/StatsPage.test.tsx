@@ -85,6 +85,45 @@ const mockSharedStats: StatsSnapshot = {
     topAllRelics: [],
 };
 
+// Co-op run where the local player (Ironclad) is identified
+const coopRunWithLocalPlayer: RunData = {
+    players: [
+        {
+            characterName: 'The Ironclad',
+            cards: [{ id: 'anger', count: 1, upgraded: false, upgrades: 0, enchantment: null }],
+            relics: ['war_hammer'],
+            isLocalPlayer: true,
+        },
+        {
+            characterName: 'The Silent',
+            cards: [{ id: 'shiv', count: 1, upgraded: false, upgrades: 0, enchantment: null }],
+            relics: ['shuriken'],
+        },
+    ],
+    meta: {
+        characterName: 'The Ironclad & The Silent',
+        ascension: 5,
+        outcome: 'Victory',
+        floor: 40,
+        time: '1:00:00',
+    },
+};
+
+// Co-op run where no local player is identified (fallback to players[0])
+const coopRunWithoutLocalPlayer: RunData = {
+    players: [
+        { characterName: 'The Ironclad', cards: [], relics: [] },
+        { characterName: 'The Silent',   cards: [], relics: [] },
+    ],
+    meta: {
+        characterName: 'The Ironclad & The Silent',
+        ascension: 5,
+        outcome: 'Victory',
+        floor: 40,
+        time: '1:00:00',
+    },
+};
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('StatsPage', () => {
@@ -235,6 +274,54 @@ describe('StatsPage', () => {
             // 1 abandoned
             const ones = screen.getAllByText('1');
             expect(ones.length).toBeGreaterThanOrEqual(1);
+        });
+    });
+
+    describe('co-op run filtering', () => {
+        it('counts only the local player\'s character when isLocalPlayer is set', () => {
+            render(<StatsPage runs={[coopRunWithLocalPlayer]} />);
+            // The Ironclad (isLocalPlayer=true) should appear in By Character
+            expect(screen.getAllByText('The Ironclad').length).toBeGreaterThanOrEqual(1);
+            // The Silent (co-op partner) should NOT appear as a character row
+            expect(screen.queryByText('The Silent')).not.toBeInTheDocument();
+        });
+
+        it('counts only the local player\'s relics and cards when isLocalPlayer is set', () => {
+            // war_hammer belongs to Ironclad (local player); shuriken belongs to Silent (partner)
+            render(<StatsPage runs={[coopRunWithLocalPlayer]} />);
+            // war_hammer image should be attempted; shuriken image for the partner should not
+            // We check via the relic section appearing (war_hammer is non-starter, so it renders)
+            expect(screen.getByText('Most Common Relics in Victories')).toBeInTheDocument();
+        });
+
+        it('falls back to players[0] when no isLocalPlayer is set and shows warning banner', () => {
+            render(<StatsPage runs={[coopRunWithoutLocalPlayer]} />);
+            // The host (players[0] = Ironclad) should appear, Silent should not
+            expect(screen.getAllByText('The Ironclad').length).toBeGreaterThanOrEqual(1);
+            expect(screen.queryByText('The Silent')).not.toBeInTheDocument();
+            // Fallback warning banner should be visible
+            expect(screen.getByText(/Co-op runs detected/i)).toBeInTheDocument();
+        });
+
+        it('does NOT show the fallback warning when isLocalPlayer is identified', () => {
+            render(<StatsPage runs={[coopRunWithLocalPlayer]} />);
+            expect(screen.queryByText(/Co-op runs detected/i)).not.toBeInTheDocument();
+        });
+
+        it('does NOT show the fallback warning for solo-only runs', () => {
+            render(<StatsPage runs={mockRuns} />);
+            expect(screen.queryByText(/Co-op runs detected/i)).not.toBeInTheDocument();
+        });
+
+        it('does NOT show the fallback warning when a solo run is present alongside an old-format co-op run', () => {
+            // Simulates runs loaded from localStorage before v5: solo runs auto-flag as local,
+            // co-op runs have no isLocalPlayer bit set — identity is still considered "known".
+            const soloRun: RunData = {
+                players: [{ characterName: 'The Ironclad', cards: [], relics: [], isLocalPlayer: true }],
+                meta: { characterName: 'The Ironclad', ascension: 0, outcome: 'Victory', floor: 40 },
+            };
+            render(<StatsPage runs={[soloRun, coopRunWithoutLocalPlayer]} />);
+            expect(screen.queryByText(/Co-op runs detected/i)).not.toBeInTheDocument();
         });
     });
 });

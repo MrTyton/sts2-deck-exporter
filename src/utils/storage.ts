@@ -39,3 +39,28 @@ export function clearSavedRuns() {
         console.error("Failed to clear saved runs from storage", err);
     }
 }
+
+const LOCAL_NET_ID_KEY = 'sts2_local_net_id';
+
+/**
+ * Retrieves the local player's Steam ID (read from the raw JSON 'id' field) saved from a prior session.
+ */
+export function getLocalNetId(): string | undefined {
+    try {
+        return localStorage.getItem(LOCAL_NET_ID_KEY) ?? undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+/**
+ * Persists the local player's Steam ID so it can be used to identify
+ * the local player in co-op runs across sessions.
+ */
+export function saveLocalNetId(netId: string) {
+    try {
+        localStorage.setItem(LOCAL_NET_ID_KEY, netId);
+    } catch (err) {
+        console.error("Failed to save local net ID", err);
+    }
+}

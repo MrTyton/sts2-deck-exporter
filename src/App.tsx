@@ -9,7 +9,7 @@ import { getCharacterName } from './utils/characterMapper'
 import { encodeRun, decodeRun } from './utils/deckEncoder'
 import { decodeStats } from './utils/statsEncoder'
 import type { StatsSnapshot } from './utils/statsImageExport'
-import { getSavedRunUIDs, saveRunUID, clearSavedRuns } from './utils/storage'
+import { getSavedRunUIDs, saveRunUID, clearSavedRuns, getLocalNetId, saveLocalNetId } from './utils/storage'
 
 function App() {
     const [isInfoOpen, setIsInfoOpen] = useState(false)
@@ -175,6 +175,20 @@ function App() {
         const currentUIDs = getSavedRunUIDs();
         const addedUIDsInThisBatch = new Set<string>();
 
+        // Detect the local player's Steam ID from solo runs.
+        // Solo runs have exactly one player whose 'id' field (a Steam64 ulong) is definitively
+        // the local player. Pre-scan the batch first, then fall back to the ID saved from a prior session.
+        let localNetId = getLocalNetId();
+        if (!localNetId) {
+            for (const rawJson of jsonArray) {
+                if (rawJson.players?.length === 1 && rawJson.players[0].id != null) {
+                    localNetId = String(rawJson.players[0].id);
+                    saveLocalNetId(localNetId);
+                    break;
+                }
+            }
+        }
+
         const newRuns: RunData[] = [];
         jsonArray.forEach(rawJson => {
             let runLengthStr: string | number = "?";
@@ -188,16 +202,25 @@ function App() {
             const timeStr = rawJson.run_time ? formatTime(rawJson.run_time) : undefined;
             const timestamp = rawJson.start_time;
 
+            const isSoloRun = rawJson.players.length === 1;
             const playersData: PlayerRunData[] = rawJson.players.map((player: any) => {
                 const characterId = player.character;
                 const characterName = getCharacterName(characterId);
                 const deckArray = player.deck;
                 const relicsArray = player.relics || [];
+                // 'id' in the run JSON is a Steam64 ulong; store as string to avoid JS number precision loss.
+                const netId = player.id != null ? String(player.id) : undefined;
+                const isLocalPlayer: boolean | undefined =
+                    isSoloRun ? true
+                    : (localNetId !== undefined && netId === localNetId) ? true
+                    : undefined;
 
                 return {
                     characterName: characterName || "Unknown Character",
                     cards: parseDeckArray(deckArray),
-                    relics: relicsArray.map((r: any) => r.id.replace('RELIC.', '').toLowerCase())
+                    relics: relicsArray.map((r: any) => r.id.replace('RELIC.', '').toLowerCase()),
+                    netId,
+                    isLocalPlayer,
                 };
             });
 

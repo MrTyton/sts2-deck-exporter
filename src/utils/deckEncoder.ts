@@ -33,7 +33,7 @@ const BITS_COUNT = 4;
 const BITS_TINKER_TIME_TYPE  = 2; // CardType: 1=Attack, 2=Skill, 3=Power (fits in 2 bits)
 const BITS_TINKER_TIME_RIDER = 4; // RiderEffect: 0-9 (fits in 4 bits)
 
-const CURRENT_VERSION = 4;
+const CURRENT_VERSION = 5;
 
 export function encodeRun(run: RunData): string | null {
     try {
@@ -87,6 +87,9 @@ export function encodeRun(run: RunData): string | null {
             let charIdNum = charToNum[normalizedCharName];
             if (charIdNum === undefined) charIdNum = 15; // 15 is the new 'unknown' for 4 bits
             writer.write(charIdNum, V1_BITS_CHARACTER);
+
+            // v5+: isLocalPlayer flag (1 bit; marks the file-owner player for co-op run filtering)
+            writer.writeBool(p.isLocalPlayer === true);
 
             // Relics
             const relics = p.relics || [];
@@ -193,6 +196,14 @@ export function decodeRun(base64UrlStr: string): RunData | null {
             const rawCharName = numToChar[charIdNum];
             const characterName = getCharacterName(rawCharName) || 'Unknown';
 
+            // v5+: isLocalPlayer flag; for older solo runs auto-mark the only player as local
+            let isLocalPlayer: boolean | undefined;
+            if (version >= 5) {
+                isLocalPlayer = reader.readBool() ? true : undefined;
+            } else if (numPlayers === 1) {
+                isLocalPlayer = true;
+            }
+
             const numRelics = reader.read(BITS_NUM_RELICS);
             const relics: string[] = [];
             for (let r = 0; r < numRelics; r++) {
@@ -264,7 +275,8 @@ export function decodeRun(base64UrlStr: string): RunData | null {
             players.push({
                 characterName,
                 relics,
-                cards
+                cards,
+                isLocalPlayer,
             });
         }
 

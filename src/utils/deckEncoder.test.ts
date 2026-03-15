@@ -82,6 +82,53 @@ describe('Deck Encoder', () => {
         expect(player.cards[2].id).toBe('anger');
         expect(player.cards[2].upgraded).toBe(true);
         expect(player.cards[2].enchantment).toBe('sharp');
+
+        // v5: isLocalPlayer bit was not set on the fixture, so it decodes as undefined
+        expect(player.isLocalPlayer).toBeUndefined();
+    });
+
+    it('encodes and decodes isLocalPlayer=true for the local player in a co-op run', () => {
+        const coopRun: RunData = {
+            meta: {
+                ascension: 5,
+                floor: 40,
+                outcome: 'Victory',
+                time: '1:00:00',
+                characterName: 'The Ironclad & The Silent',
+            },
+            players: [
+                {
+                    characterName: 'The Ironclad',
+                    relics: [],
+                    cards: [],
+                    isLocalPlayer: true,
+                },
+                {
+                    characterName: 'The Silent',
+                    relics: [],
+                    cards: [],
+                    isLocalPlayer: undefined,
+                },
+            ],
+        };
+
+        const encoded = encodeRun(coopRun);
+        expect(encoded).toBeTruthy();
+
+        const decoded = decodeRun(encoded!);
+        expect(decoded).not.toBeNull();
+        expect(decoded!.players?.length).toBe(2);
+        expect(decoded!.players![0].isLocalPlayer).toBe(true);
+        expect(decoded!.players![1].isLocalPlayer).toBeUndefined();
+    });
+
+    it('auto-marks the single player as isLocalPlayer=true for legacy (v0–v4) solo runs', () => {
+        // The v0 backwards-compatibility string from the existing test represents a solo run.
+        const v0String = 'ALQV1sIKCYGyBhjgGkqOXAyVqq-Ffq4Ya11rbQjhEFhAShAxCCDc0IIYQXgg8BB8CEQEPEImYRQwi-BGQCNIEfYJHQSyglyBMCCY0E5AJ_4UFwpVXLC00-LkWel9MTGlAtFUcqxb7cWnLdUSuhj66VgpiPjHCGDOEHUIU9xAiHBEeCJeEcMI-YR8gkW3ECTDcQJSdyYlkhLfCeMFBkKQgYeqBcrOWtrTVOo5ubM1hJoWMv9eqh1hICAYhBXCFqENu48RhAjVBHTuaEdII74R5AjyXGiPsEoIJQVxolgBL3udEve40TKwoABQaCkoEA';
+        const decoded = decodeRun(v0String);
+        expect(decoded).not.toBeNull();
+        // v0 solo run: the single player should be automatically flagged as local
+        expect(decoded!.players![0].isLocalPlayer).toBe(true);
     });
 
     it('correctly handles a 4-character run (Version 1)', () => {
@@ -108,6 +155,8 @@ describe('Deck Encoder', () => {
         expect(decoded).not.toBeNull();
         expect(decoded!.players?.length).toBe(4);
         expect(decoded!.meta?.characterName).toBe('The Ironclad & The Necrobinder & The Regent & The Necrobinder');
+        // None of the players had isLocalPlayer set, so all decode as undefined
+        decoded!.players!.forEach(p => expect(p.isLocalPlayer).toBeUndefined());
     });
 
     it('maintains backward compatibility with Version 0 strings', () => {

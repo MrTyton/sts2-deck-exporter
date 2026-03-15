@@ -365,6 +365,11 @@ export function StatsPage({ runs, sharedStats }: StatsPageProps) {
 
         // Per-character card frequency (starter-filtered): charName → cardId → { runs, wins, card }
         const cardByChar: Record<string, Record<string, { runs: number; wins: number; card: CardData }>> = {};
+        let multiplayerFallbackUsed = false;
+        // True once any player across any run has been positively identified as the local player.
+        // Solo runs always auto-flag their single player; v5+ co-op runs set the bit on upload.
+        // If at least one identity is known, old co-op runs can use the host fallback silently.
+        let hasAnyIdentifiedPlayer = false;
 
         for (const run of runs) {
             const outcome = run.meta?.outcome ?? 'Unknown';
@@ -388,12 +393,30 @@ export function StatsPage({ runs, sharedStats }: StatsPageProps) {
                 if (isVictory) winTimes.push(t);
             }
 
-            // Collect players' character names
-            const players = run.players ?? (run.meta?.characterName ? [{ characterName: run.meta.characterName, cards: run.cards ?? [], relics: run.meta.relics ?? [] }] : []);
+            // Collect all players in this run
+            const allPlayers = run.players ?? (run.meta?.characterName ? [{ characterName: run.meta.characterName, cards: run.cards ?? [], relics: run.meta.relics ?? [] }] : []);
 
-            // For multi-player runs, each character counts individually
-            const charNames: string[] = players.length > 0
-                ? players.map(p => p.characterName)
+            // For co-op runs, attribute stats only to the local player (identified via isLocalPlayer).
+            // If the local player cannot be determined, fall back to players[0] (the host heuristic).
+            const isMultiplayer = allPlayers.length > 1;
+            let statPlayers: typeof allPlayers;
+            if (!isMultiplayer) {
+                statPlayers = allPlayers;
+                if (allPlayers.some(p => p.isLocalPlayer === true)) hasAnyIdentifiedPlayer = true;
+            } else {
+                const localP = allPlayers.find(p => p.isLocalPlayer === true);
+                if (localP) {
+                    statPlayers = [localP];
+                    hasAnyIdentifiedPlayer = true;
+                } else {
+                    statPlayers = [allPlayers[0]];
+                    multiplayerFallbackUsed = true;
+                }
+            }
+
+            // Only the local player's character counts toward per-character stats
+            const charNames: string[] = statPlayers.length > 0
+                ? statPlayers.map(p => p.characterName)
                 : [run.meta?.characterName ?? 'Unknown'];
 
             for (const char of charNames) {
@@ -413,9 +436,9 @@ export function StatsPage({ runs, sharedStats }: StatsPageProps) {
             else if (isAbandoned) byAsc[ascension].abandoned++;
             if (floor > 0) byAsc[ascension].floors.push(floor);
 
-            // Relics — collect unique relic IDs across all players in this run
+            // Relics — collect unique relic IDs from the local player only
             const relicsSeen = new Set<string>();
-            for (const p of players) {
+            for (const p of statPlayers) {
                 for (const relicId of (p.relics ?? [])) {
                     if (!relicsSeen.has(relicId) && !STARTER_RELIC_IDS.has(relicId)) {
                         relicsSeen.add(relicId);
@@ -428,7 +451,7 @@ export function StatsPage({ runs, sharedStats }: StatsPageProps) {
 
             // Cards — collect unique card IDs seen per run
             const cardsSeen = new Set<string>();
-            for (const p of players) {
+            for (const p of statPlayers) {
                 const charName = p.characterName;
                 if (!cardByChar[charName]) cardByChar[charName] = {};
                 const charCardsSeen = new Set<string>();
@@ -540,6 +563,9 @@ export function StatsPage({ runs, sharedStats }: StatsPageProps) {
             topCardsByChar,
             topWinRelics,
             topAllRelics,
+            // Show warning only when fallback was needed AND we never identified the local player
+            // anywhere in the run set (i.e. no solo run or v5 co-op run was present).
+            multiplayerFallback: multiplayerFallbackUsed && !hasAnyIdentifiedPlayer,
         };
     }, [runs, sharedStats]);
 
@@ -607,6 +633,15 @@ export function StatsPage({ runs, sharedStats }: StatsPageProps) {
                 <button className="btn-secondary" onClick={handleCopyImage}>{copyText}</button>
                 <button className="btn-primary"   onClick={handleExport}>{exportText}</button>
             </div>
+            {/* Multiplayer fallback notice */}
+            {stats.multiplayerFallback && !sharedStats && (
+                <div className="glass-panel" style={{ padding: '0.75rem 1.25rem', borderRadius: '12px', borderLeft: '4px solid var(--text-secondary)', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>Co-op runs detected.</strong>{' '}
+                    Upload a solo run so your Steam ID can be auto-detected — stats will then count only your character in co-op runs.
+                    Currently showing the host&#39;s character as a fallback.
+                </div>
+            )}
+
             {/* Summary Row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
                 <StatCard label="Total Runs" value={stats.totalRuns} />
