@@ -29,7 +29,11 @@ const BITS_ENCHANTMENT_ID = 11;
 const BITS_ENCHANTMENT_AMOUNT = 5; // v3+:  0-31 enchantment amount
 const BITS_COUNT = 4;
 
-const CURRENT_VERSION = 3;
+// v4+: Mad Science variant props (only written/read when card id === 'mad_science')
+const BITS_TINKER_TIME_TYPE  = 2; // CardType: 1=Attack, 2=Skill, 3=Power (fits in 2 bits)
+const BITS_TINKER_TIME_RIDER = 4; // RiderEffect: 0-9 (fits in 4 bits)
+
+const CURRENT_VERSION = 4;
 
 export function encodeRun(run: RunData): string | null {
     try {
@@ -116,6 +120,19 @@ export function encodeRun(run: RunData): string | null {
                 }
 
                 writer.write(Math.min(15, card.count || 1), BITS_COUNT);
+
+                // v4+: write Mad Science variant props so shared links decode correctly
+                if (card.id.toLowerCase() === 'mad_science') {
+                    const typeMap: Record<string, number> = { attack: 1, skill: 2, power: 3 };
+                    const riderMap: Record<string, number> = {
+                        sapping: 1, violence: 2, choking: 3, energized: 4,
+                        wisdom: 5, chaos: 6, expertise: 7, curious: 8, improvement: 9,
+                    };
+                    const typeNum  = typeMap[(card.cardType ?? 'attack').toLowerCase()] ?? 1;
+                    const riderNum = riderMap[(card.tinkerTimeRider ?? '').toLowerCase()] ?? 0;
+                    writer.write(typeNum,  BITS_TINKER_TIME_TYPE);
+                    writer.write(riderNum, BITS_TINKER_TIME_RIDER);
+                }
             }
         }
 
@@ -214,6 +231,23 @@ export function decodeRun(base64UrlStr: string): RunData | null {
 
                 const count = reader.read(BITS_COUNT);
 
+                // v4+: read Mad Science variant props
+                let portraitId: string | undefined;
+                let cardType: string | undefined;
+                let tinkerTimeRider: string | undefined;
+                if (id === 'mad_science' && version >= 4) {
+                    const typeNum  = reader.read(BITS_TINKER_TIME_TYPE);
+                    const riderNum = reader.read(BITS_TINKER_TIME_RIDER);
+                    const typeNames:  Record<number, string> = { 1: 'Attack', 2: 'Skill', 3: 'Power' };
+                    const riderNames: Record<number, string> = {
+                        1: 'sapping', 2: 'violence', 3: 'choking', 4: 'energized',
+                        5: 'wisdom',  6: 'chaos',    7: 'expertise', 8: 'curious', 9: 'improvement',
+                    };
+                    cardType       = typeNames[typeNum]  ?? 'Attack';
+                    portraitId     = `mad_science_${cardType.toLowerCase()}`;
+                    tinkerTimeRider = riderNames[riderNum];
+                }
+
                 cards.push({
                     id,
                     count,
@@ -221,6 +255,9 @@ export function decodeRun(base64UrlStr: string): RunData | null {
                     upgrades,
                     enchantment,
                     enchantmentAmount,
+                    portraitId,
+                    cardType,
+                    tinkerTimeRider,
                 });
             }
 

@@ -1,3 +1,5 @@
+import type { CardData } from '../types';
+
 /**
  * Formats a card ID into a displayable name.
  * Specifically strips character names from basic "Strike" and "Defend" cards.
@@ -26,4 +28,14 @@ export function formatCardName(id: string): string {
         .split(' ')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
         .join(' ');
+}
+
+/**
+ * Returns the portrait filename stem (without extension) for a card.
+ * For variant cards like Mad Science the portrait differs per instance,
+ * so `portraitId` may be set to e.g. 'mad_science_attack'.
+ * Falls back to `card.id` for all normal cards.
+ */
+export function getCardPortraitId(card: CardData): string {
+    return card.portraitId ?? card.id;
 }

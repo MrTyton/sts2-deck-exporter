@@ -1,4 +1,5 @@
 import { useMemo, useCallback } from 'react';
+import { getCardPortraitId } from '../utils/cardUtils';
 import type { CardData, ImageExportMeta, PlayerRunData } from '../types';
 
 export interface RunData {
@@ -258,7 +259,7 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
                                     {bgCards.map((card, i) => (
                                         <img
                                             key={i}
-                                            src={`${import.meta.env.BASE_URL}assets/portraits/${card.id}.webp`}
+                                            src={`${import.meta.env.BASE_URL}assets/portraits/${getCardPortraitId(card)}.webp`}
                                             alt=""
                                             style={{
                                                 width: `${100 / bgCards.length}%`,

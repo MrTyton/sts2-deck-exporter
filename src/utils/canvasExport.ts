@@ -1,5 +1,5 @@
 import type { RunData } from '../types';
-import { formatCardName } from './cardUtils';
+import { formatCardName, getCardPortraitId } from './cardUtils';
 
 const imageCache = new Map<string, HTMLImageElement | null>();
 
@@ -307,7 +307,7 @@ export async function generateDeckImage(run: RunData): Promise<HTMLCanvasElement
         const gridStartX = padding + Math.floor((availableWidth - gridContentWidth) / 2);
 
         let cardPromises = p.cards.map((card, index) => {
-            return loadImage(`${import.meta.env.BASE_URL}assets/portraits/${card.id}.webp`).then(img => ({ card, img, index }));
+            return loadImage(`${import.meta.env.BASE_URL}assets/portraits/${getCardPortraitId(card)}.webp`).then(img => ({ card, img, index }));
         });
         const cardResults = await Promise.all(cardPromises);
 

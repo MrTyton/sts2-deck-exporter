@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { generateDeckImage } from '../utils/canvasExport';
-import { formatCardName } from '../utils/cardUtils';
+import { formatCardName, getCardPortraitId } from '../utils/cardUtils';
 import { Tooltip } from './Tooltip';
 import { getCardTooltip, getRelicTooltip } from '../utils/tooltipUtils';
 import type { TooltipContent } from '../utils/tooltipUtils';
@@ -21,7 +21,7 @@ export function DeckVisualizer({ run }: DeckVisualizerProps) {
     const [tooltipVisible, setTooltipVisible] = useState(false);
 
     const showCardTooltip = useCallback((e: React.MouseEvent, card: CardData) => {
-        const content = getCardTooltip(card.id, card.upgraded, card.upgrades, card.enchantment, card.enchantmentAmount);
+        const content = getCardTooltip(card.id, card.upgraded, card.upgrades, card.enchantment, card.enchantmentAmount, card.cardType, card.tinkerTimeRider);
         setTooltipContent(content);
         setTooltipPos({ x: e.clientX, y: e.clientY });
         setTooltipVisible(true);
@@ -177,7 +177,7 @@ export function DeckVisualizer({ run }: DeckVisualizerProps) {
                                     onMouseLeave={hideTooltip}
                                 >
                                     <img
-                                        src={`${import.meta.env.BASE_URL}assets/portraits/${card.id}.webp`}
+                                        src={`${import.meta.env.BASE_URL}assets/portraits/${getCardPortraitId(card)}.webp`}
                                         alt={card.id}
                                         style={{
                                             width: '100%',

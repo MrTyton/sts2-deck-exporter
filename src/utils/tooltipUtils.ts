@@ -193,8 +193,10 @@ function varMarker(r: { value: number; changed: boolean }): string {
 /**
  * Strip every occurrence of `{keyword:...}` (with any nesting depth) from text.
  * Used to remove blocks like {HasRider:...} that are only meaningful at runtime.
+ * When keepInner=true the outer {Keyword:...} wrapper is removed but the inner
+ * content is preserved (used to unwrap {HasRider:...} when a rider is known).
  */
-function stripKeywordBlock(text: string, keyword: string): string {
+function stripKeywordBlock(text: string, keyword: string, keepInner = false): string {
   const prefix = `{${keyword}:`;
   let result = '';
   let i = 0;
@@ -202,15 +204,52 @@ function stripKeywordBlock(text: string, keyword: string): string {
     if (text.startsWith(prefix, i)) {
       let depth = 1;
       let j = i + prefix.length;
+      const innerStart = j;
       while (j < text.length && depth > 0) {
         if (text[j] === '{') depth++;
         else if (text[j] === '}') depth--;
         j++;
       }
+      if (keepInner) {
+        // Keep everything between the prefix and the closing }, exclusive
+        result += text.slice(innerStart, j - 1);
+      }
       i = j; // skip past the closing }
     } else {
       result += text[i++];
     }
+  }
+  return result;
+}
+
+/**
+ * Resolves a boolean conditional block `{Keyword:content|}`.
+ * If active=true, the content (before the first `|` at depth 1) is kept.
+ * If active=false, the whole block is stripped.
+ * Handles nested `{...}` correctly.
+ */
+function resolveConditionalBlock(text: string, keyword: string, active: boolean): string {
+  const prefix = `{${keyword}:`;
+  let result = '';
+  let i = 0;
+  while (i < text.length) {
+    if (!text.startsWith(prefix, i)) { result += text[i++]; continue; }
+    let depth = 1;
+    let j = i + prefix.length;
+    const contentStart = j;
+    let pipeAt = -1; // position of first `|` at depth 1
+    while (j < text.length && depth > 0) {
+      if (text[j] === '{') { depth++; j++; continue; }
+      if (text[j] === '}') { depth--; if (depth === 0) { j++; break; } j++; continue; }
+      if (text[j] === '|' && depth === 1 && pipeAt < 0) pipeAt = j;
+      j++;
+    }
+    if (active) {
+      // Keep content up to the first pipe (or end if no pipe)
+      const end = pipeAt >= 0 ? pipeAt : j - 1;
+      result += text.slice(contentStart, end);
+    }
+    i = j; // skip whole block
   }
   return result;
 }
@@ -263,17 +302,35 @@ function parseDescription(
   raw: string,
   vals: CardValueEntry | undefined,
   isUpgraded: boolean,
-  upgradeLevel: number
+  upgradeLevel: number,
+  tinkerTimeRider?: string
 ): TooltipDescription {
   if (!raw) return [];
 
-  // 0. Strip {HasRider:...} blocks entirely — rider selection is runtime-only
-  let text = stripKeywordBlock(raw, 'HasRider');
+  // 0. Resolve {HasRider:...} block.
+  //    If we know the active rider, unwrap the block and keep only the matching
+  //    sub-block (e.g. {Choking:content|}). Otherwise strip the whole block.
+  let text: string;
+  if (tinkerTimeRider) {
+    // {HasRider:riderContent|fallback} — keep only riderContent when rider is known
+    text = resolveConditionalBlock(raw, 'HasRider', true);
+    // Now resolve individual rider sub-blocks.
+    // Format: {RiderName:content|} — keep content for active rider, strip others.
+    const allRiders = ['Sapping','Violence','Choking','Energized','Wisdom','Chaos',
+                       'Expertise','Curious','Improvement'];
+    for (const rider of allRiders) {
+      const active = rider.toLowerCase() === tinkerTimeRider;
+      text = resolveConditionalBlock(text, rider, active);
+    }
+  } else {
+    text = stripKeywordBlock(raw, 'HasRider');
+  }
 
-  // 1. Remove runtime-only conditional blocks (InCombat, IsTargeting, and
-  //    rider sub-blocks like Violence/Sapping/etc. that appear in card branches)
+  // 1. Remove runtime-only conditional blocks (InCombat, IsTargeting).
+  //    Rider sub-blocks (Violence/Sapping/etc.) are handled above in step 0
+  //    when a rider is known; they only appear inside {HasRider:...} anyway.
   text = text.replace(
-    /\{(?:InCombat|IsTargeting|Violence|Sapping|Choking|Energized|Wisdom|Chaos|Expertise|Curious|Improvement|Swift|StartOfTurn|StartOfCombat|CharacterOnly)[^|]*\|?\}/g,
+    /\{(?:InCombat|IsTargeting|Swift|StartOfTurn|StartOfCombat|CharacterOnly)[^|]*\|?\}/g,
     ''
   );
 
@@ -472,31 +529,39 @@ export function getCardTooltip(
   isUpgraded: boolean,
   upgradeLevel: number,
   enchantmentId: string | null,
-  enchantmentAmount?: number
+  enchantmentAmount?: number,
+  cardTypeOverride?: string,   // e.g. 'Attack' | 'Skill' | 'Power' for Mad Science
+  tinkerTimeRider?: string     // lowercase rider name, e.g. 'choking', 'wisdom'
 ): TooltipContent {
   const locId = id;  // already lowercase; keys in gameData are lowercase
   const valKey = id.toUpperCase();
   const vals = cardValues[valKey];
 
+  // If the card has a runtime-chosen type (e.g. Mad Science), override the static cardType
+  // so that {CardType:choose(...)} resolves to the correct branch.
+  const effectiveVals: CardValueEntry | undefined = (cardTypeOverride && vals)
+    ? { ...vals, cardType: cardTypeOverride }
+    : vals;
+
   const title = locCard(locId, 'title') || formatFallbackName(id);
   const rawDesc = locCard(locId, 'description');
   const description = rawDesc
-    ? parseDescription(rawDesc, vals, isUpgraded, upgradeLevel)
-    : keywordsToDescription(vals?.keywords ?? []);
+    ? parseDescription(rawDesc, effectiveVals, isUpgraded, upgradeLevel, tinkerTimeRider)
+    : keywordsToDescription(effectiveVals?.keywords ?? []);
 
   // Energy cost
   // Curses use -1 as their cost literal; Unplayable cards are also suppressed.
   let energyCost: string | undefined;
-  if (vals?.energyCost != null) {
-    const ec = vals.energyCost;
+  if (effectiveVals?.energyCost != null) {
+    const ec = effectiveVals.energyCost;
     if (ec === 'X') {
       energyCost = 'X';
     } else if (ec === 'CardEnergyCost.Unplayable' || (typeof ec === 'number' && ec < 0)) {
       energyCost = undefined;
     } else {
       let costNum = typeof ec === 'number' ? ec : parseInt(String(ec), 10);
-      if (isUpgraded && vals.upgrades.EnergyCost != null) {
-        const delta = vals.upgrades.EnergyCost;
+      if (isUpgraded && effectiveVals.upgrades.EnergyCost != null) {
+        const delta = effectiveVals.upgrades.EnergyCost;
         if (typeof delta === 'string' && delta.startsWith('=')) {
           costNum = parseFloat(delta.slice(1));
         } else {
@@ -511,7 +576,7 @@ export function getCardTooltip(
     title,
     description,
     energyCost,
-    cardType: vals?.cardType,
+    cardType: cardTypeOverride ?? vals?.cardType,
     cardRarity: vals?.cardRarity,
   };
 

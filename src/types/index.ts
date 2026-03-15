@@ -5,6 +5,12 @@ export interface CardData {
     upgrades: number;
     enchantment: string | null;
     enchantmentAmount?: number;
+    /** Overrides the portrait filename (without extension) for variant cards like Mad Science. */
+    portraitId?: string;
+    /** Overrides the card type for variant cards like Mad Science (e.g. 'Attack' | 'Skill' | 'Power'). */
+    cardType?: string;
+    /** Active rider effect for Mad Science (lowercase enum name, e.g. 'choking', 'wisdom'). */
+    tinkerTimeRider?: string;
 }
 
 export interface RawCardData {
@@ -15,6 +21,10 @@ export interface RawCardData {
     enchantment?: { id: string; amount?: number };
     enchantmentId?: string;
     count?: number;
+    /** Runtime card properties stored in save files (e.g. TinkerTimeType for Mad Science). */
+    props?: {
+        ints?: Array<{ name: string; value: number }>;
+    };
 }
 
 export interface PlayerRunData {
