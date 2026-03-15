@@ -305,7 +305,13 @@ function App() {
                             <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                                 Viewing shared run stats. Upload your own <code>.run</code> files to see your stats here.
                             </span>
-                            <button className="btn-secondary" onClick={() => window.location.assign(window.location.pathname)}>
+                            <button className="btn-secondary" onClick={() => {
+                                    setSharedStats(null);
+                                    window.history.replaceState(null, '', ' ');
+                                    if (getSavedRunUIDs().length > 0) {
+                                        setGalleryTab('stats');
+                                    }
+                                }}>
                                 Load Your Own Runs
                             </button>
                         </div>
