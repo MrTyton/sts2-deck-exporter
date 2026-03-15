@@ -299,7 +299,7 @@ function App() {
             </header>
 
             <main>
-                {runs.length === 0 && sharedStats ? (
+                {sharedStats !== null ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                         <div className="glass-panel" style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                             <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
