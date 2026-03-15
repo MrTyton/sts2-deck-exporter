@@ -335,3 +335,95 @@ describe('App Component – Back to Gallery', () => {
     });
 });
 
+// ─── Browser history / back button ───────────────────────────────────────────
+
+describe('App Component – Browser History (back button)', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        vi.clearAllMocks();
+        window.location.hash = '';
+    });
+
+    it('calls pushState when the user selects a run from the gallery', async () => {
+        const pushSpy = vi.spyOn(window.history, 'pushState');
+        const { container } = render(<App />);
+        await uploadRun(container, singlePlayerJson);
+
+        const tile = document.querySelector('.run-tile')!;
+        fireEvent.click(tile);
+
+        await waitFor(() =>
+            expect(screen.getByText('← Back to Gallery')).toBeInTheDocument()
+        );
+
+        expect(pushSpy).toHaveBeenCalledWith(null, '', expect.stringMatching(/^#d=/));
+        pushSpy.mockRestore();
+    });
+
+    it('does NOT call pushState when the run is loaded from a shared #d= URL', async () => {
+        const sampleRun = {
+            players: [{ characterName: 'The Ironclad', cards: [], relics: [] }],
+            meta: { characterName: 'The Ironclad', ascension: 0, floor: 1, outcome: 'Victory' },
+        };
+        const uid = encodeRun(sampleRun);
+        window.location.hash = `#d=${uid}`;
+
+        const pushSpy = vi.spyOn(window.history, 'pushState');
+        render(<App />);
+
+        await waitFor(() =>
+            expect(screen.getAllByText(/The Ironclad/).length).toBeGreaterThan(0)
+        );
+
+        expect(pushSpy).not.toHaveBeenCalledWith(null, '', expect.stringMatching(/^#d=/));
+        pushSpy.mockRestore();
+    });
+
+    it('popstate event with no #d= hash returns to the gallery', async () => {
+        const { container } = render(<App />);
+        await uploadRun(container, singlePlayerJson);
+
+        // Navigate into a run
+        const tile = document.querySelector('.run-tile')!;
+        fireEvent.click(tile);
+        await waitFor(() =>
+            expect(screen.getByText('← Back to Gallery')).toBeInTheDocument()
+        );
+
+        // Simulate the browser restoring the previous URL and firing popstate
+        window.location.hash = '';
+        window.dispatchEvent(new PopStateEvent('popstate'));
+
+        await waitFor(() => {
+            expect(screen.queryByText('← Back to Gallery')).not.toBeInTheDocument();
+            expect(screen.getByText('Clear All Runs')).toBeInTheDocument();
+        });
+    });
+
+    it('popstate event with a #d= hash keeps the run view open', async () => {
+        const sampleRun = {
+            players: [{ characterName: 'The Ironclad', cards: [], relics: [] }],
+            meta: { characterName: 'The Ironclad', ascension: 0, floor: 1, outcome: 'Victory' },
+        };
+        const uid = encodeRun(sampleRun);
+
+        const { container } = render(<App />);
+        await uploadRun(container, singlePlayerJson);
+
+        // Navigate into a run
+        const tile = document.querySelector('.run-tile')!;
+        fireEvent.click(tile);
+        await waitFor(() =>
+            expect(screen.getByText('← Back to Gallery')).toBeInTheDocument()
+        );
+
+        // Simulate forward navigation: URL still has a #d= hash
+        window.location.hash = `#d=${uid}`;
+        window.dispatchEvent(new PopStateEvent('popstate'));
+
+        // Run view should remain
+        await new Promise(resolve => setTimeout(resolve, 50));
+        expect(screen.getByText('← Back to Gallery')).toBeInTheDocument();
+    });
+});
+

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { FileUploader } from './components/FileUploader'
 import { DeckVisualizer } from './components/DeckVisualizer'
 import { Gallery } from './components/Gallery'
@@ -25,6 +25,11 @@ function App() {
         playerCount: 'All',
         sortBy: 'date_desc'
     })
+
+    // Ref: true when selectedRunId was set by the initial URL hash load (skip pushState)
+    const fromHashRef = useRef(false);
+    // Ref: tracks previous selectedRunId to avoid pushing duplicate history entries
+    const prevSelectedRunIdRef = useRef<number | null>(null);
 
     // On mount, check if there's a deck compressed in the URL hash AND load saved runs
     useEffect(() => {
@@ -56,6 +61,7 @@ function App() {
                             initialRuns.push(decoded);
                         }
                         setRuns(initialRuns);
+                        fromHashRef.current = true;
                         setSelectedRunId(initialRuns.indexOf(decoded));
                         setIsSharedView(true);
                         return;
@@ -105,6 +111,7 @@ function App() {
                             }
 
                             setRuns([...initialRuns, legacyRun]);
+                            fromHashRef.current = true;
                             setSelectedRunId(initialRuns.length); // view it directly
                             setIsSharedView(true);
                         }
@@ -124,20 +131,46 @@ function App() {
     // Update share URL whenever a specific run is selected
     useEffect(() => {
         if (selectedRunId !== null && runs[selectedRunId]) {
-            const run = runs[selectedRunId]
+            const run = runs[selectedRunId];
             try {
                 const bitpacked = encodeRun(run);
                 if (bitpacked) {
-                    window.history.replaceState(null, '', `#d=${bitpacked}`);
+                    const newHash = `#d=${bitpacked}`;
+                    if (fromHashRef.current) {
+                        // Initial load from URL – the hash is already in the address bar, don't push a duplicate entry
+                        fromHashRef.current = false;
+                        window.history.replaceState(null, '', newHash);
+                    } else if (selectedRunId !== prevSelectedRunIdRef.current) {
+                        // User navigated to a new run – push so the browser back button returns to the gallery
+                        window.history.pushState(null, '', newHash);
+                    } else {
+                        // Same run selected but runs array changed (e.g. more files uploaded) – just keep URL in sync
+                        window.history.replaceState(null, '', newHash);
+                    }
+                    prevSelectedRunIdRef.current = selectedRunId;
                 }
             } catch (err) {
                 console.warn("Could not generate share URL", err);
             }
         } else {
+            prevSelectedRunIdRef.current = null;
             // clear hash if back in gallery
             window.history.replaceState(null, '', ' ');
         }
     }, [selectedRunId, runs])
+
+    // Handle browser back/forward navigation
+    useEffect(() => {
+        const handlePopState = () => {
+            const hash = window.location.hash;
+            if (!hash || !hash.startsWith('#d=')) {
+                setSelectedRunId(null);
+                setIsSharedView(false);
+            }
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [])
 
     const formatTime = (seconds: number) => {
         const h = Math.floor(seconds / 3600);
