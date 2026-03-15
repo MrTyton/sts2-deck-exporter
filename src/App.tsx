@@ -7,6 +7,8 @@ import type { RunData, PlayerRunData } from './types'
 import { parseDeckArray } from './utils/deckParser'
 import { getCharacterName } from './utils/characterMapper'
 import { encodeRun, decodeRun } from './utils/deckEncoder'
+import { decodeStats } from './utils/statsEncoder'
+import type { StatsSnapshot } from './utils/statsImageExport'
 import { getSavedRunUIDs, saveRunUID, clearSavedRuns } from './utils/storage'
 
 function App() {
@@ -15,6 +17,7 @@ function App() {
     const [selectedRunId, setSelectedRunId] = useState<number | null>(null)
     const [isSharedView, setIsSharedView] = useState(false)
     const [galleryTab, setGalleryTab] = useState<'gallery' | 'stats'>('gallery')
+    const [sharedStats, setSharedStats] = useState<StatsSnapshot | null>(null)
     const [galleryFilters, setGalleryFilters] = useState<Record<string, string>>({
         character: 'All',
         outcome: 'All',
@@ -60,6 +63,16 @@ function App() {
                 } catch (err) {
                     console.error("Failed to decode bitpacked run from hash:", err);
                 }
+            } else if (hash.startsWith('#s=')) {
+                // Stats snapshot shared link
+                decodeStats(hash.substring(3)).then(decoded => {
+                    if (decoded) {
+                        setSharedStats(decoded);
+                        setGalleryTab('stats');
+                    }
+                }).catch(err => console.error('Failed to decode stats snapshot from hash:', err));
+                if (initialRuns.length > 0) setRuns(initialRuns);
+                return;
             } else if (hash.startsWith('#deck=')) {
                 // Legacy lz-string format
                 import('lz-string').then(lzString => {
@@ -286,7 +299,19 @@ function App() {
             </header>
 
             <main>
-                {runs.length === 0 ? (
+                {runs.length === 0 && sharedStats ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                        <div className="glass-panel" style={{ padding: '0.75rem 1.5rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                Viewing shared run stats. Upload your own <code>.run</code> files to see your stats here.
+                            </span>
+                            <button className="btn-secondary" onClick={() => window.location.assign(window.location.pathname)}>
+                                Load Your Own Runs
+                            </button>
+                        </div>
+                        <StatsPage runs={[]} sharedStats={sharedStats} />
+                    </div>
+                ) : runs.length === 0 ? (
                     <FileUploader onDeckLoaded={handleDeckLoaded} />
                 ) : selectedRunId === null ? (
                     <div>

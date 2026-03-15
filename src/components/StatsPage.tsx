@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { formatCardName, getCardPortraitId } from '../utils/cardUtils';
 import { generateStatsImage } from '../utils/statsImageExport';
+import { encodeStats } from '../utils/statsEncoder';
 import type { StatsTableRow, StatsTopCard, StatsTopRelic, StatsSnapshot } from '../utils/statsImageExport';
 import { Tooltip } from './Tooltip';
 import { getCardTooltip, getRelicTooltip } from '../utils/tooltipUtils';
@@ -9,6 +10,7 @@ import type { RunData, CardData } from '../types';
 
 interface StatsPageProps {
     runs: RunData[];
+    sharedStats?: StatsSnapshot;
 }
 
 // ── Starter card IDs to exclude from "most common" lists ─────────────────────
@@ -295,7 +297,7 @@ function TopRelicsSection({ relics, title, countType = 'wins', tooltipHandlers }
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-export function StatsPage({ runs }: StatsPageProps) {
+export function StatsPage({ runs, sharedStats }: StatsPageProps) {
     // All hooks must be declared before any early return (Rules of Hooks)
     const [tooltipContent, setTooltipContent] = useState<TooltipContent | null>(null);
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -334,7 +336,8 @@ export function StatsPage({ runs }: StatsPageProps) {
         onMouseLeave: handleHideTooltip,
     };
 
-    const stats = useMemo(() => {
+    const stats = useMemo((): StatsSnapshot | null => {
+        if (sharedStats && runs.length === 0) return sharedStats;
         if (runs.length === 0) return null;
 
         const totalRuns = runs.length;
@@ -538,18 +541,20 @@ export function StatsPage({ runs }: StatsPageProps) {
             topWinRelics,
             topAllRelics,
         };
-    }, [runs]);
+    }, [runs, sharedStats]);
+
+    // ── Button states (before early return — Rules of Hooks) ───────────────────
+    const [exportText,   setExportText]   = useState('Download Stats Image');
+    const [copyText,     setCopyText]     = useState('Copy Stats Image');
+    const [copyLinkText, setCopyLinkText] = useState('Copy Stats Link');
 
     if (!stats) return null;
 
-    // ── Image export ───────────────────────────────────────────────────────────
-    const [exportText, setExportText] = useState('Download Stats Image');
-    const [copyText,   setCopyText]   = useState('Copy Stats Image');
-
+    // ── Image export ─────────────────────────────────────────────────────
     const handleExport = async () => {
         setExportText('Generating…');
         try {
-            const canvas  = await generateStatsImage(stats as unknown as StatsSnapshot);
+            const canvas  = await generateStatsImage(stats);
             const dataUrl = canvas.toDataURL('image/png');
             const link    = document.createElement('a');
             link.download = 'sts2-run-stats.png';
@@ -565,7 +570,7 @@ export function StatsPage({ runs }: StatsPageProps) {
     const handleCopyImage = async () => {
         setCopyText('Generating…');
         try {
-            const canvas = await generateStatsImage(stats as unknown as StatsSnapshot);
+            const canvas = await generateStatsImage(stats);
             canvas.toBlob(async (blob) => {
                 if (!blob) throw new Error('toBlob failed');
                 await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
@@ -579,11 +584,26 @@ export function StatsPage({ runs }: StatsPageProps) {
         }
     };
 
+    const handleCopyLink = async () => {
+        try {
+            const encoded = await encodeStats(stats);
+            const base    = window.location.href.split('#')[0];
+            await navigator.clipboard.writeText(`${base}#s=${encoded}`);
+            setCopyLinkText('Copied!');
+            setTimeout(() => setCopyLinkText('Copy Stats Link'), 2000);
+        } catch (err) {
+            console.error('Failed to copy stats link', err);
+            setCopyLinkText('Failed');
+            setTimeout(() => setCopyLinkText('Copy Stats Link'), 2000);
+        }
+    };
+
     return (
         <>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {/* Export controls */}
             <div className="glass-panel" style={{ padding: '0.75rem 1.25rem', borderRadius: '12px', display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+                <button className="btn-secondary" onClick={handleCopyLink}>{copyLinkText}</button>
                 <button className="btn-secondary" onClick={handleCopyImage}>{copyText}</button>
                 <button className="btn-primary"   onClick={handleExport}>{exportText}</button>
             </div>
