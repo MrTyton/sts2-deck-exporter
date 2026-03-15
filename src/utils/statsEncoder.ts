@@ -177,7 +177,7 @@ async function compressBytes(data: Uint8Array): Promise<Uint8Array> {
     const writer = cs.writable.getWriter();
     const ab = new ArrayBuffer(data.byteLength);
     new Uint8Array(ab).set(data);
-    writer.write(ab);
+    writer.write(new Uint8Array(ab));
     writer.close();
     const chunks: Uint8Array[] = [];
     const reader = cs.readable.getReader();
@@ -198,8 +198,9 @@ async function decompressBytes(data: Uint8Array): Promise<Uint8Array> {
     const writer = ds.writable.getWriter();
     const ab = new ArrayBuffer(data.byteLength);
     new Uint8Array(ab).set(data);
-    writer.write(ab);
-    writer.close();
+    // Suppress write-side rejections; errors surface through reader.read() below.
+    writer.write(new Uint8Array(ab)).catch(() => {});
+    writer.close().catch(() => {});
     const chunks: Uint8Array[] = [];
     const reader = ds.readable.getReader();
     for (;;) {

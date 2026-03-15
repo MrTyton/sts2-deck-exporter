@@ -120,3 +120,218 @@ describe('App Component Persistence & Duplicates', () => {
         expect(screen.queryByText('Drop Save/Run Files Here')).not.toBeInTheDocument();
     });
 });
+
+// ─── Helper: upload one run file ──────────────────────────────────────────────
+
+async function uploadRun(container: HTMLElement, json: object) {
+    const input = container.querySelector('#file-upload')!;
+    const file = new File([JSON.stringify(json)], 'test.run', { type: 'application/json' });
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => {
+        expect(screen.getByText('Clear All Runs')).toBeInTheDocument();
+    });
+}
+
+const singlePlayerJson = {
+    players: [{ character: 'IRONCLAD', deck: [{ id: 'ANGER' }], relics: [] }],
+    win: true,
+    ascension: 20,
+    run_time: 3661,
+};
+
+// ─── Info modal ───────────────────────────────────────────────────────────────
+
+describe('App Component – Info Modal', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        vi.clearAllMocks();
+        window.location.hash = '';
+    });
+
+    it('info modal is hidden on mount', () => {
+        render(<App />);
+        expect(screen.queryByText('How to Use')).not.toBeInTheDocument();
+    });
+
+    it('opens the info modal when the "i" button is clicked', () => {
+        render(<App />);
+        fireEvent.click(screen.getByTitle('Information & Disclaimer'));
+        expect(screen.getByText('How to Use')).toBeInTheDocument();
+    });
+
+    it('closes the info modal when the "×" close button is clicked', async () => {
+        render(<App />);
+        fireEvent.click(screen.getByTitle('Information & Disclaimer'));
+        expect(screen.getByText('How to Use')).toBeInTheDocument();
+        fireEvent.click(screen.getByText('×'));
+        await waitFor(() => {
+            expect(screen.queryByText('How to Use')).not.toBeInTheDocument();
+        });
+    });
+
+    it('closes the info modal when the overlay backdrop is clicked', async () => {
+        render(<App />);
+        fireEvent.click(screen.getByTitle('Information & Disclaimer'));
+        const overlay = document.querySelector('.modal-overlay')!;
+        fireEvent.click(overlay);
+        await waitFor(() => {
+            expect(screen.queryByText('How to Use')).not.toBeInTheDocument();
+        });
+    });
+
+    it('modal stopPropagation prevents close when clicking inside the modal content', () => {
+        render(<App />);
+        fireEvent.click(screen.getByTitle('Information & Disclaimer'));
+        const modalContent = document.querySelector('.modal-content')!;
+        // Click inside the modal – it should remain open
+        fireEvent.click(modalContent);
+        expect(screen.getByText('How to Use')).toBeInTheDocument();
+    });
+
+    it('info modal contains the Windows save path hint', () => {
+        render(<App />);
+        fireEvent.click(screen.getByTitle('Information & Disclaimer'));
+        expect(screen.getByText(/Windows/)).toBeInTheDocument();
+        expect(screen.getByText(/AppData/)).toBeInTheDocument();
+    });
+});
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+
+describe('App Component – Gallery / Stats tabs', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        vi.clearAllMocks();
+        window.location.hash = '';
+    });
+
+    it('shows gallery tab active by default after upload', async () => {
+        const { container } = render(<App />);
+        await uploadRun(container, singlePlayerJson);
+        // The Gallery component should be visible; StatsPage should not
+        expect(screen.queryByText('Total Runs')).not.toBeInTheDocument();
+    });
+
+    it('switches to Stats tab and shows stats content', async () => {
+        const { container } = render(<App />);
+        await uploadRun(container, singlePlayerJson);
+        fireEvent.click(screen.getByRole('button', { name: 'stats' }));
+        await waitFor(() => {
+            expect(screen.getByText('Total Runs')).toBeInTheDocument();
+        });
+    });
+
+    it('switches back to Gallery from Stats tab', async () => {
+        const { container } = render(<App />);
+        await uploadRun(container, singlePlayerJson);
+        fireEvent.click(screen.getByRole('button', { name: 'stats' }));
+        await waitFor(() => expect(screen.getByText('Total Runs')).toBeInTheDocument());
+
+        fireEvent.click(screen.getByRole('button', { name: 'gallery' }));
+        await waitFor(() => {
+            expect(screen.queryByText('Total Runs')).not.toBeInTheDocument();
+        });
+    });
+
+    it('stats page shows "1" as total run count after one upload', async () => {
+        const { container } = render(<App />);
+        await uploadRun(container, singlePlayerJson);
+        fireEvent.click(screen.getByRole('button', { name: 'stats' }));
+        await waitFor(() => expect(screen.getByText('Total Runs')).toBeInTheDocument());
+        // '1' appears multiple times (total runs, victories, table cells) — just confirm it's present
+        expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1);
+    });
+});
+
+// ─── URL hash loading ─────────────────────────────────────────────────────────
+
+describe('App Component – URL hash loading', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        vi.clearAllMocks();
+        window.location.hash = '';
+    });
+
+    it('loads a run from #d= hash on mount and shows DeckVisualizer', async () => {
+        const sampleRun = {
+            players: [{ characterName: 'The Ironclad', cards: [], relics: [] }],
+            meta: { characterName: 'The Ironclad', ascension: 5, floor: 45, outcome: 'Victory' },
+        };
+        const uid = encodeRun(sampleRun);
+        window.location.hash = `#d=${uid}`;
+
+        render(<App />);
+
+        await waitFor(() => {
+            expect(screen.getAllByText(/The Ironclad/).length).toBeGreaterThan(0);
+        });
+    });
+
+    it('does NOT show "← Back to Gallery" when loaded from #d= URL (shared view)', async () => {
+        const sampleRun = {
+            players: [{ characterName: 'The Ironclad', cards: [], relics: [] }],
+            meta: { characterName: 'The Ironclad', ascension: 0, floor: 1, outcome: 'Victory' },
+        };
+        const uid = encodeRun(sampleRun);
+        window.location.hash = `#d=${uid}`;
+
+        render(<App />);
+
+        await waitFor(() =>
+            expect(screen.getAllByText(/The Ironclad/).length).toBeGreaterThan(0)
+        );
+        expect(screen.queryByText('← Back to Gallery')).not.toBeInTheDocument();
+    });
+
+    it('ignores a malformed #d= hash gracefully', async () => {
+        window.location.hash = '#d=this_is_not_valid_base64_data!!!';
+        render(<App />);
+        // Should fall back to the file uploader without crashing
+        await waitFor(() => {
+            expect(screen.getByText('Drop Save/Run Files Here')).toBeInTheDocument();
+        });
+    });
+});
+
+// ─── Back to Gallery button ───────────────────────────────────────────────────
+
+describe('App Component – Back to Gallery', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        vi.clearAllMocks();
+        window.location.hash = '';
+    });
+
+    it('shows "← Back to Gallery" when a run tile is clicked from gallery', async () => {
+        const { container } = render(<App />);
+        await uploadRun(container, singlePlayerJson);
+
+        // Click the first run tile in the gallery
+        const tile = document.querySelector('.run-tile')!;
+        fireEvent.click(tile);
+
+        await waitFor(() => {
+            expect(screen.getByText('← Back to Gallery')).toBeInTheDocument();
+        });
+    });
+
+    it('"← Back to Gallery" navigates back to the gallery', async () => {
+        const { container } = render(<App />);
+        await uploadRun(container, singlePlayerJson);
+
+        const tile = document.querySelector('.run-tile')!;
+        fireEvent.click(tile);
+
+        await waitFor(() =>
+            expect(screen.getByText('← Back to Gallery')).toBeInTheDocument()
+        );
+
+        fireEvent.click(screen.getByText('← Back to Gallery'));
+
+        await waitFor(() => {
+            expect(screen.queryByText('← Back to Gallery')).not.toBeInTheDocument();
+            expect(screen.getByText('Clear All Runs')).toBeInTheDocument();
+        });
+    });
+});
+

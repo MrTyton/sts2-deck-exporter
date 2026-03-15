@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatCardName } from './cardUtils';
+import { formatCardName, getCardPortraitId } from './cardUtils';
+import type { CardData } from '../types';
 
 describe('formatCardName', () => {
     it('should strip character names from basic Strike cards and capitalize', () => {
@@ -36,5 +37,38 @@ describe('formatCardName', () => {
     it('should work with single word strike/defend if they exist', () => {
         expect(formatCardName('strike')).toBe('Strike');
         expect(formatCardName('defend')).toBe('Defend');
+    });
+});
+
+describe('getCardPortraitId', () => {
+    it('returns card.id when portraitId is undefined', () => {
+        const card: CardData = { id: 'bash', count: 1, upgraded: false, upgrades: 0, enchantment: null };
+        expect(getCardPortraitId(card)).toBe('bash');
+    });
+
+    it('returns portraitId when explicitly set (Mad Science attack variant)', () => {
+        const card: CardData = {
+            id: 'mad_science', count: 1, upgraded: false, upgrades: 0,
+            enchantment: null, portraitId: 'mad_science_attack'
+        };
+        expect(getCardPortraitId(card)).toBe('mad_science_attack');
+    });
+
+    it('returns portraitId for skill and power variants', () => {
+        const skillCard: CardData = {
+            id: 'mad_science', count: 1, upgraded: false, upgrades: 0,
+            enchantment: null, portraitId: 'mad_science_skill'
+        };
+        const powerCard: CardData = {
+            id: 'mad_science', count: 1, upgraded: false, upgrades: 0,
+            enchantment: null, portraitId: 'mad_science_power'
+        };
+        expect(getCardPortraitId(skillCard)).toBe('mad_science_skill');
+        expect(getCardPortraitId(powerCard)).toBe('mad_science_power');
+    });
+
+    it('returns card.id for non-variant cards regardless of other fields', () => {
+        const card: CardData = { id: 'anger', count: 2, upgraded: true, upgrades: 1, enchantment: 'SHARP' };
+        expect(getCardPortraitId(card)).toBe('anger');
     });
 });

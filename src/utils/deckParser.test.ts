@@ -78,3 +78,90 @@ describe('parseDeckArray', () => {
         expect(defend!.count).toBe(3);
     });
 });
+
+describe('parseDeckArray – Mad Science variants', () => {
+    it('defaults to attack type (portraitId=mad_science_attack) when props are absent', () => {
+        const result = parseDeckArray([{ id: 'MAD_SCIENCE' }]);
+        expect(result).toHaveLength(1);
+        expect(result[0].id).toBe('mad_science');
+        expect(result[0].portraitId).toBe('mad_science_attack');
+        expect(result[0].cardType).toBe('Attack');
+        expect(result[0].tinkerTimeRider).toBeUndefined();
+    });
+
+    it('parses TinkerTimeType=1 as Attack variant', () => {
+        const result = parseDeckArray([{
+            id: 'MAD_SCIENCE',
+            props: { ints: [{ name: 'TinkerTimeType', value: 1 }] }
+        }]);
+        expect(result[0].portraitId).toBe('mad_science_attack');
+        expect(result[0].cardType).toBe('Attack');
+    });
+
+    it('parses TinkerTimeType=2 as Skill variant', () => {
+        const result = parseDeckArray([{
+            id: 'MAD_SCIENCE',
+            props: { ints: [{ name: 'TinkerTimeType', value: 2 }] }
+        }]);
+        expect(result[0].portraitId).toBe('mad_science_skill');
+        expect(result[0].cardType).toBe('Skill');
+    });
+
+    it('parses TinkerTimeType=3 as Power variant', () => {
+        const result = parseDeckArray([{
+            id: 'MAD_SCIENCE',
+            props: { ints: [{ name: 'TinkerTimeType', value: 3 }] }
+        }]);
+        expect(result[0].portraitId).toBe('mad_science_power');
+        expect(result[0].cardType).toBe('Power');
+    });
+
+    it('falls back to attack for an unknown TinkerTimeType value', () => {
+        const result = parseDeckArray([{
+            id: 'MAD_SCIENCE',
+            props: { ints: [{ name: 'TinkerTimeType', value: 99 }] }
+        }]);
+        expect(result[0].portraitId).toBe('mad_science_attack');
+        expect(result[0].cardType).toBe('Attack');
+    });
+
+    it('correctly parses TinkerTimeRider=3 (choking)', () => {
+        const result = parseDeckArray([{
+            id: 'MAD_SCIENCE',
+            props: { ints: [{ name: 'TinkerTimeType', value: 1 }, { name: 'TinkerTimeRider', value: 3 }] }
+        }]);
+        expect(result[0].tinkerTimeRider).toBe('choking');
+    });
+
+    it('correctly parses TinkerTimeRider=1 (sapping)', () => {
+        const result = parseDeckArray([{
+            id: 'MAD_SCIENCE',
+            props: { ints: [{ name: 'TinkerTimeType', value: 1 }, { name: 'TinkerTimeRider', value: 1 }] }
+        }]);
+        expect(result[0].tinkerTimeRider).toBe('sapping');
+    });
+
+    it('leaves tinkerTimeRider undefined when TinkerTimeRider=0 (None)', () => {
+        const result = parseDeckArray([{
+            id: 'MAD_SCIENCE',
+            props: { ints: [{ name: 'TinkerTimeType', value: 1 }, { name: 'TinkerTimeRider', value: 0 }] }
+        }]);
+        expect(result[0].tinkerTimeRider).toBeUndefined();
+    });
+
+    it('groups two mad_science cards with different types as separate entries', () => {
+        const rawDeck = [
+            { id: 'MAD_SCIENCE', props: { ints: [{ name: 'TinkerTimeType', value: 1 }] } },
+            { id: 'MAD_SCIENCE', props: { ints: [{ name: 'TinkerTimeType', value: 2 }] } },
+        ];
+        const result = parseDeckArray(rawDeck);
+        expect(result).toHaveLength(2);
+    });
+
+    it('groups two identical mad_science cards (same type and rider) into one entry', () => {
+        const card = { id: 'MAD_SCIENCE', props: { ints: [{ name: 'TinkerTimeType', value: 1 }, { name: 'TinkerTimeRider', value: 3 }] } };
+        const result = parseDeckArray([card, card]);
+        expect(result).toHaveLength(1);
+        expect(result[0].count).toBe(2);
+    });
+});
