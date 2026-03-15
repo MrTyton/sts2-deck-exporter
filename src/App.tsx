@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { FileUploader } from './components/FileUploader'
 import { DeckVisualizer } from './components/DeckVisualizer'
 import { Gallery } from './components/Gallery'
+import { StatsPage } from './components/StatsPage'
 import type { RunData, PlayerRunData } from './types'
 import { parseDeckArray } from './utils/deckParser'
 import { getCharacterName } from './utils/characterMapper'
@@ -13,6 +14,7 @@ function App() {
     const [runs, setRuns] = useState<RunData[]>([])
     const [selectedRunId, setSelectedRunId] = useState<number | null>(null)
     const [isSharedView, setIsSharedView] = useState(false)
+    const [galleryTab, setGalleryTab] = useState<'gallery' | 'stats'>('gallery')
     const [galleryFilters, setGalleryFilters] = useState<Record<string, string>>({
         character: 'All',
         outcome: 'All',
@@ -289,6 +291,7 @@ function App() {
                 ) : selectedRunId === null ? (
                     <div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                            {/* Top toolbar: upload + tabs + clear */}
                             <div style={{
                                 display: 'grid',
                                 gridTemplateColumns: 'auto 1fr auto',
@@ -297,7 +300,33 @@ function App() {
                                 gap: '1rem'
                             }}>
                                 <FileUploader onDeckLoaded={handleDeckLoaded} compact={true} />
-                                <div /> {/* Center spacer */}
+
+                                {/* Tab bar */}
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: '4px' }}>
+                                    {(['gallery', 'stats'] as const).map(tab => (
+                                        <button
+                                            key={tab}
+                                            onClick={() => setGalleryTab(tab)}
+                                            style={{
+                                                padding: '0.4rem 1.2rem',
+                                                borderRadius: '8px',
+                                                border: '1px solid',
+                                                borderColor: galleryTab === tab ? 'var(--accent-color)' : 'var(--surface-border)',
+                                                background: galleryTab === tab ? 'rgba(214,178,81,0.12)' : 'transparent',
+                                                color: galleryTab === tab ? 'var(--accent-color)' : 'var(--text-secondary)',
+                                                fontFamily: 'var(--font-body)',
+                                                fontSize: '0.9rem',
+                                                fontWeight: galleryTab === tab ? 700 : 400,
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s',
+                                                textTransform: 'capitalize',
+                                            }}
+                                        >
+                                            {tab}
+                                        </button>
+                                    ))}
+                                </div>
+
                                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                     <button className="btn-secondary" onClick={() => {
                                         setRuns([]);
@@ -306,14 +335,17 @@ function App() {
                                 </div>
                             </div>
 
-                            <Gallery
-                                runs={runs}
-                                onSelectRun={setSelectedRunId}
-                                filters={galleryFilters}
-                                onFilterChange={setGalleryFilters}
-                            />
+                            {galleryTab === 'gallery' ? (
+                                <Gallery
+                                    runs={runs}
+                                    onSelectRun={setSelectedRunId}
+                                    filters={galleryFilters}
+                                    onFilterChange={setGalleryFilters}
+                                />
+                            ) : (
+                                <StatsPage runs={runs} />
+                            )}
                         </div>
-                        {/* We could also put the uploader below the gallery so they can add more, but let's keep it simple for now */}
                     </div>
                 ) : (
                     <div>

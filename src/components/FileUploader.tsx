@@ -118,7 +118,7 @@ export function FileUploader({ onDeckLoaded, compact = false }: FileUploaderProp
             />
             {compact ? (
                 <div style={{ pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '0.9rem', color: isDragging ? 'var(--accent-color)' : 'var(--text-primary)', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.9rem', color: isDragging ? 'var(--accent-color)' : 'var(--text-primary)', fontWeight: 600, display: 'inline-block', minWidth: '9.5rem', textAlign: 'center' }}>
                         {isDragging ? 'Drop Files Here' : 'Upload More Runs'}
                     </span>
                 </div>
