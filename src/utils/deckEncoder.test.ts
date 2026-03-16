@@ -123,10 +123,15 @@ describe('Deck Encoder', () => {
     });
 
     it('auto-marks the single player as isLocalPlayer=true for legacy (v0–v4) solo runs', () => {
-        // The v0 backwards-compatibility string from the existing test represents a solo run.
-        const v0String = 'ALQV1sIKCYGyBhjgGkqOXAyVqq-Ffq4Ya11rbQjhEFhAShAxCCDc0IIYQXgg8BB8CEQEPEImYRQwi-BGQCNIEfYJHQSyglyBMCCY0E5AJ_4UFwpVXLC00-LkWel9MTGlAtFUcqxb7cWnLdUSuhj66VgpiPjHCGDOEHUIU9xAiHBEeCJeEcMI-YR8gkW3ECTDcQJSdyYlkhLfCeMFBkKQgYeqBcrOWtrTVOo5ubM1hJoWMv9eqh1hICAYhBXCFqENu48RhAjVBHTuaEdII74R5AjyXGiPsEoIJQVxolgBL3udEve40TKwoABQaCkoEA';
-        const decoded = decodeRun(v0String);
+        // Minimal hand-crafted v0 bitstream for a solo run (1 player, no cards, no relics):
+        //   version=0 (3b), ascension=0 (5b), floor=1 (6b), outcome=Victory (2b),
+        //   time=0 (16b), numPlayers=1 (2b [V0_BITS_NUM_PLAYERS]),
+        //   charId=1/silent (3b [V0_BITS_CHARACTER]), numRelics=0 (6b), numCards=0 (6b)
+        // Bytes: [0x00, 0x04, 0x00, 0x00, 0x48, 0x00, 0x00] → base64url "AAQAAEgAAA"
+        const v0SoloString = 'AAQAAEgAAA';
+        const decoded = decodeRun(v0SoloString);
         expect(decoded).not.toBeNull();
+        expect(decoded!.players?.length).toBe(1);
         // v0 solo run: the single player should be automatically flagged as local
         expect(decoded!.players![0].isLocalPlayer).toBe(true);
     });
