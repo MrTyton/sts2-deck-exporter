@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { encodeStats, decodeStats } from './statsEncoder';
+import { compressBytes } from './compression';
+import { BitWriter } from './bitstream';
+import { idToNum } from './encoderDict';
 import type { StatsSnapshot } from './statsImageExport';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -191,14 +194,29 @@ describe('statsEncoder – null optional fields', () => {
         expect(decoded!.topWinCards).toHaveLength(0);
     });
 
-    it('clamps list lengths to 15 entries maximum', async () => {
+    it('clamps list lengths to 10 entries maximum (V1)', async () => {
         const cards = Array.from({ length: 20 }, (_, i) => ({
             id: 'bash', card: { id: 'bash', count: 1, upgraded: false, upgrades: 0, enchantment: null },
             appearances: i + 1, wins: i,
         }));
         const snap = makeSnapshot({ topAllCards: cards });
         const decoded = await decodeStats(await encodeStats(snap));
-        expect(decoded!.topAllCards.length).toBeLessThanOrEqual(15);
+        expect(decoded!.topAllCards.length).toBeLessThanOrEqual(10);
+    });
+
+    it('V1: counts at the 12-bit ceiling (4095) survive round-trip', async () => {
+        const snap = makeSnapshot({
+            topWinCards: [{
+                id: 'bash',
+                card: { id: 'bash', count: 1, upgraded: false, upgrades: 0, enchantment: null },
+                appearances: 9999, // clamped to 4095
+                wins: 4095,
+            }],
+        });
+        const decoded = await decodeStats(await encodeStats(snap));
+        expect(decoded).not.toBeNull();
+        expect(decoded!.topWinCards[0].appearances).toBe(4095);
+        expect(decoded!.topWinCards[0].wins).toBe(4095);
     });
 });
 
@@ -218,5 +236,54 @@ describe('statsEncoder – decodeStats error handling', () => {
     it('returns null for garbage base64url', async () => {
         const result = await decodeStats('AAAAAAAAAA');
         expect(result).toBeNull();
+    });
+});
+
+// ─── V0 backward compat ───────────────────────────────────────────────────────
+
+describe('statsEncoder – V0 backward compatibility', () => {
+    it('decodes a manually-constructed V0 payload (16-bit counts) correctly', async () => {
+        // Build a V0-style bitstream directly (STATS_VERSION=0, 16-bit appearance/win counts)
+        const w = new BitWriter();
+        w.write(0, 3);   // STATS_VERSION = 0
+        w.write(5, 16);  // totalRuns
+        w.write(3, 16);  // wins
+        w.write(2, 16);  // losses
+        w.write(0, 16);  // abandoned
+        w.writeBool(false); // highestAscVictory = null
+        w.writeBool(false); // longestRunTime = null
+        w.write(0, 6);   // avgFloor = null (0 sentinel)
+        w.write(0, 6);   // avgWinFloor = null
+        w.write(0, 6);   // avgDefeatFloor = null
+        w.writeBool(false); // avgTime = null
+        w.writeBool(false); // fastestWin = null
+        w.writeBool(false); // totalTimeSeconds = null
+        w.write(0, 4);   // charRows: 0 entries
+        w.write(0, 4);   // ascRows: 0 entries
+        // topWinCards: 1 entry with 16-bit counts (V0 style)
+        w.write(1, 4);
+        w.write(idToNum['bash'] ?? 0, 11); // card id
+        w.write(5000, 16); // appearances — would overflow 12 bits, proves V0 path
+        w.write(3000, 16); // wins
+        w.write(0, 4);   // topAllCards: 0
+        w.write(0, 4);   // topCardsByChar: 0
+        w.write(0, 4);   // topWinRelics: 0
+        w.write(0, 4);   // topAllRelics: 0
+
+        const compressed = await compressBytes(w.getUint8Array());
+        // Build base64url from compressed bytes
+        let binary = '';
+        for (let i = 0; i < compressed.byteLength; i++) binary += String.fromCharCode(compressed[i]);
+        const b64 = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+        const decoded = await decodeStats(b64);
+        expect(decoded).not.toBeNull();
+        expect(decoded!.totalRuns).toBe(5);
+        expect(decoded!.wins).toBe(3);
+        expect(decoded!.topWinCards).toHaveLength(1);
+        expect(decoded!.topWinCards[0].id).toBe('bash');
+        // V0 decoder reads 16-bit counts, so the full value is preserved
+        expect(decoded!.topWinCards[0].appearances).toBe(5000);
+        expect(decoded!.topWinCards[0].wins).toBe(3000);
     });
 });

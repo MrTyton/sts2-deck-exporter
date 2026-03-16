@@ -33,19 +33,20 @@ function App() {
 
     // On mount, check if there's a deck compressed in the URL hash AND load saved runs
     useEffect(() => {
+        (async () => {
         const hash = window.location.hash
         let initialRuns: RunData[] = [];
 
         // 1. Load from storage first
         const savedUIDs = getSavedRunUIDs();
-        savedUIDs.forEach(uid => {
+        for (const uid of savedUIDs) {
             try {
-                const decoded = decodeRun(uid);
+                const decoded = await decodeRun(uid);
                 if (decoded) initialRuns.push(decoded);
             } catch (err) {
                 console.error("Failed to decode saved run:", err);
             }
-        });
+        }
 
         // 2. Check hash
         if (hash) {
@@ -53,7 +54,7 @@ function App() {
                 // New bitpacked format
                 try {
                     const bitpacked = hash.substring(3);
-                    const decoded = decodeRun(bitpacked);
+                    const decoded = await decodeRun(bitpacked);
                     if (decoded) {
                         // Check if already in initialRuns to avoid dupes
                         const alreadyStored = savedUIDs.includes(bitpacked);
@@ -126,14 +127,16 @@ function App() {
         if (initialRuns.length > 0) {
             setRuns(initialRuns);
         }
+        })();
     }, [])
 
     // Update share URL whenever a specific run is selected
     useEffect(() => {
+        (async () => {
         if (selectedRunId !== null && runs[selectedRunId]) {
             const run = runs[selectedRunId];
             try {
-                const bitpacked = encodeRun(run);
+                const bitpacked = await encodeRun(run);
                 if (bitpacked) {
                     const newHash = `#d=${bitpacked}`;
                     if (fromHashRef.current) {
@@ -157,6 +160,7 @@ function App() {
             // clear hash if back in gallery
             window.history.replaceState(null, '', ' ');
         }
+        })();
     }, [selectedRunId, runs])
 
     // Handle browser back/forward navigation
@@ -202,7 +206,7 @@ function App() {
         );
     };
 
-    const handleDeckLoaded = useCallback((rawJsons: any | any[]) => {
+    const handleDeckLoaded = useCallback(async (rawJsons: any | any[]) => {
         setIsSharedView(false);
         const jsonArray = Array.isArray(rawJsons) ? rawJsons : [rawJsons];
         const currentUIDs = getSavedRunUIDs();
@@ -223,7 +227,7 @@ function App() {
         }
 
         const newRuns: RunData[] = [];
-        jsonArray.forEach(rawJson => {
+        for (const rawJson of jsonArray) {
             let runLengthStr: string | number = "?";
             if (rawJson.map_point_history) {
                 let totalFloors = rawJson.map_point_history.reduce((acc: number, act: any[]) => acc + act.length, 0);
@@ -275,7 +279,7 @@ function App() {
 
             // Save to local storage with duplicate check
             try {
-                const bitpacked = encodeRun(run);
+                const bitpacked = await encodeRun(run);
                 if (bitpacked) {
                     if (!currentUIDs.includes(bitpacked) && !addedUIDsInThisBatch.has(bitpacked)) {
                         newRuns.push(run);
@@ -286,7 +290,7 @@ function App() {
             } catch (err) {
                 console.warn("Could not process run for saving", err);
             }
-        });
+        }
 
         setRuns(prev => [...prev, ...newRuns]);
     }, [])

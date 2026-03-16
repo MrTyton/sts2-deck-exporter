@@ -1,11 +1,12 @@
 import { idToNum, numToId, charToNum, numToChar } from './encoderDict';
 import { BitWriter, BitReader } from './bitstream';
 import { getCharacterName } from './characterMapper';
+import { compressBytes, decompressBytes } from './compression';
 import type { StatsSnapshot, StatsTableRow, StatsTopCard, StatsTopRelic } from './statsImageExport';
 import type { CardData } from '../types';
 
 // ── Version ───────────────────────────────────────────────────────────────────
-const STATS_VERSION   = 0;
+const STATS_VERSION   = 1;
 const BITS_VERSION    = 3;
 
 // ── Field widths ──────────────────────────────────────────────────────────────
@@ -18,7 +19,8 @@ const BITS_CHAR_ID    = 4;  // 0–15 (6 known characters + unknown sentinel 15)
 const BITS_LIST_COUNT = 4;  // 0–15 items per list
 const BITS_CARD_ID    = 11; // matches deckEncoder
 const BITS_RELIC_ID   = 11; // matches deckEncoder
-const BITS_COUNT_16   = 16; // appearance / win counters
+const BITS_COUNT_16   = 16; // V0 appearance / win counters
+const BITS_COUNT_12   = 12; // V1 appearance / win counters (max 4 095)
 
 // ── Base64url helpers ─────────────────────────────────────────────────────────
 function toBase64Url(arr: Uint8Array): string {
@@ -146,13 +148,13 @@ function rAscRow(r: BitReader): StatsTableRow {
 // ── Card / relic entry helpers ────────────────────────────────────────────────
 function wCard(w: BitWriter, e: StatsTopCard): void {
     w.write(idToNum[e.id.toLowerCase()] ?? 0, BITS_CARD_ID);
-    w.write(Math.min(65535, e.appearances), BITS_COUNT_16);
-    w.write(Math.min(65535, e.wins),        BITS_COUNT_16);
+    w.write(Math.min(4095, e.appearances), BITS_COUNT_12);
+    w.write(Math.min(4095, e.wins),        BITS_COUNT_12);
 }
-function rCard(r: BitReader): StatsTopCard {
+function rCard(r: BitReader, countBits: number): StatsTopCard {
     const id          = numToId[r.read(BITS_CARD_ID)] || 'unknown';
-    const appearances = r.read(BITS_COUNT_16);
-    const wins        = r.read(BITS_COUNT_16);
+    const appearances = r.read(countBits);
+    const wins        = r.read(countBits);
     // Minimal CardData — enough for portrait rendering and tooltips
     const card: CardData = { id, count: 1, upgraded: false, upgrades: 0, enchantment: null };
     return { id, card, appearances, wins };
@@ -160,60 +162,17 @@ function rCard(r: BitReader): StatsTopCard {
 
 function wRelic(w: BitWriter, e: StatsTopRelic): void {
     w.write(idToNum[e.id.toLowerCase()] ?? 0, BITS_RELIC_ID);
-    w.write(Math.min(65535, e.appearances), BITS_COUNT_16);
-    w.write(Math.min(65535, e.wins),        BITS_COUNT_16);
+    w.write(Math.min(4095, e.appearances), BITS_COUNT_12);
+    w.write(Math.min(4095, e.wins),        BITS_COUNT_12);
 }
-function rRelic(r: BitReader): StatsTopRelic {
+function rRelic(r: BitReader, countBits: number): StatsTopRelic {
     const id          = numToId[r.read(BITS_RELIC_ID)] || 'unknown';
-    const appearances = r.read(BITS_COUNT_16);
-    const wins        = r.read(BITS_COUNT_16);
+    const appearances = r.read(countBits);
+    const wins        = r.read(countBits);
     return { id, appearances, wins };
 }
 
-// ── Compression helpers (native browser CompressionStream / deflate-raw) ──────
 
-async function compressBytes(data: Uint8Array): Promise<Uint8Array> {
-    const cs = new CompressionStream('deflate-raw');
-    const writer = cs.writable.getWriter();
-    const ab = new ArrayBuffer(data.byteLength);
-    new Uint8Array(ab).set(data);
-    writer.write(new Uint8Array(ab));
-    writer.close();
-    const chunks: Uint8Array[] = [];
-    const reader = cs.readable.getReader();
-    for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-    }
-    const total = chunks.reduce((n, c) => n + c.length, 0);
-    const out = new Uint8Array(total);
-    let off = 0;
-    for (const c of chunks) { out.set(c, off); off += c.length; }
-    return out;
-}
-
-async function decompressBytes(data: Uint8Array): Promise<Uint8Array> {
-    const ds = new DecompressionStream('deflate-raw');
-    const writer = ds.writable.getWriter();
-    const ab = new ArrayBuffer(data.byteLength);
-    new Uint8Array(ab).set(data);
-    // Suppress write-side rejections; errors surface through reader.read() below.
-    writer.write(new Uint8Array(ab)).catch(() => {});
-    writer.close().catch(() => {});
-    const chunks: Uint8Array[] = [];
-    const reader = ds.readable.getReader();
-    for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-    }
-    const total = chunks.reduce((n, c) => n + c.length, 0);
-    const out = new Uint8Array(total);
-    let off = 0;
-    for (const c of chunks) { out.set(c, off); off += c.length; }
-    return out;
-}
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -247,29 +206,29 @@ export async function encodeStats(snapshot: StatsSnapshot): Promise<string> {
     for (const row of ascRows) wAscRow(w, row);
 
     // Card lists
-    const topWinCards = snapshot.topWinCards.slice(0, 15);
+    const topWinCards = snapshot.topWinCards.slice(0, 10);
     w.write(topWinCards.length, BITS_LIST_COUNT);
     for (const e of topWinCards) wCard(w, e);
 
-    const topAllCards = snapshot.topAllCards.slice(0, 15);
+    const topAllCards = snapshot.topAllCards.slice(0, 10);
     w.write(topAllCards.length, BITS_LIST_COUNT);
     for (const e of topAllCards) wCard(w, e);
 
-    const topCardsByChar = snapshot.topCardsByChar.slice(0, 15);
+    const topCardsByChar = snapshot.topCardsByChar.slice(0, 10);
     w.write(topCardsByChar.length, BITS_LIST_COUNT);
     for (const { charName, cards } of topCardsByChar) {
         w.write(charNameToNum(charName), BITS_CHAR_ID);
-        const cc = cards.slice(0, 15);
+        const cc = cards.slice(0, 10);
         w.write(cc.length, BITS_LIST_COUNT);
         for (const e of cc) wCard(w, e);
     }
 
     // Relic lists
-    const topWinRelics = snapshot.topWinRelics.slice(0, 15);
+    const topWinRelics = snapshot.topWinRelics.slice(0, 10);
     w.write(topWinRelics.length, BITS_LIST_COUNT);
     for (const e of topWinRelics) wRelic(w, e);
 
-    const topAllRelics = snapshot.topAllRelics.slice(0, 15);
+    const topAllRelics = snapshot.topAllRelics.slice(0, 10);
     w.write(topAllRelics.length, BITS_LIST_COUNT);
     for (const e of topAllRelics) wRelic(w, e);
 
@@ -285,6 +244,9 @@ export async function decodeStats(str: string): Promise<StatsSnapshot | null> {
         if (version > STATS_VERSION) {
             console.warn('Unsupported stats snapshot version:', version);
         }
+
+        // V0 used 16-bit counts; V1+ uses 12-bit counts
+        const countBits = version === 0 ? BITS_COUNT_16 : BITS_COUNT_12;
 
         // Summary counters
         const totalRuns = r.read(BITS_RUN_COUNT);
@@ -314,11 +276,11 @@ export async function decodeStats(str: string): Promise<StatsSnapshot | null> {
         // Card lists
         const numWinCards = r.read(BITS_LIST_COUNT);
         const topWinCards: StatsTopCard[] = [];
-        for (let i = 0; i < numWinCards; i++) topWinCards.push(rCard(r));
+        for (let i = 0; i < numWinCards; i++) topWinCards.push(rCard(r, countBits));
 
         const numAllCards = r.read(BITS_LIST_COUNT);
         const topAllCards: StatsTopCard[] = [];
-        for (let i = 0; i < numAllCards; i++) topAllCards.push(rCard(r));
+        for (let i = 0; i < numAllCards; i++) topAllCards.push(rCard(r, countBits));
 
         const numCharGroups = r.read(BITS_LIST_COUNT);
         const topCardsByChar: Array<{ charName: string; cards: StatsTopCard[] }> = [];
@@ -326,18 +288,18 @@ export async function decodeStats(str: string): Promise<StatsSnapshot | null> {
             const charName = numToCharName(r.read(BITS_CHAR_ID));
             const numCards = r.read(BITS_LIST_COUNT);
             const cards: StatsTopCard[] = [];
-            for (let j = 0; j < numCards; j++) cards.push(rCard(r));
+            for (let j = 0; j < numCards; j++) cards.push(rCard(r, countBits));
             topCardsByChar.push({ charName, cards });
         }
 
         // Relic lists
         const numWinRelics = r.read(BITS_LIST_COUNT);
         const topWinRelics: StatsTopRelic[] = [];
-        for (let i = 0; i < numWinRelics; i++) topWinRelics.push(rRelic(r));
+        for (let i = 0; i < numWinRelics; i++) topWinRelics.push(rRelic(r, countBits));
 
         const numAllRelics = r.read(BITS_LIST_COUNT);
         const topAllRelics: StatsTopRelic[] = [];
-        for (let i = 0; i < numAllRelics; i++) topAllRelics.push(rRelic(r));
+        for (let i = 0; i < numAllRelics; i++) topAllRelics.push(rRelic(r, countBits));
 
         return {
             totalRuns, wins, losses, abandoned,

@@ -1,6 +1,7 @@
 import { idToNum, numToId, charToNum, numToChar } from './encoderDict';
 import { BitWriter, BitReader } from './bitstream';
 import { getCharacterName } from './characterMapper';
+import { compressBytes, decompressBytes } from './compression';
 import type { RunData, PlayerRunData, ImageExportMeta } from '../types';
 
 // Width Configuration (Version 0)
@@ -33,9 +34,9 @@ const BITS_COUNT = 4;
 const BITS_TINKER_TIME_TYPE  = 2; // CardType: 1=Attack, 2=Skill, 3=Power (fits in 2 bits)
 const BITS_TINKER_TIME_RIDER = 4; // RiderEffect: 0-9 (fits in 4 bits)
 
-const CURRENT_VERSION = 5;
+const CURRENT_VERSION = 6;
 
-export function encodeRun(run: RunData): string | null {
+export async function encodeRun(run: RunData): Promise<string | null> {
     try {
         const writer = new BitWriter();
 
@@ -139,8 +140,13 @@ export function encodeRun(run: RunData): string | null {
             }
         }
 
-        const buffer = writer.getUint8Array();
-        return arrayBufferToBase64Url(buffer);
+        const rawBytes = writer.getUint8Array();
+        const compressed = await compressBytes(rawBytes);
+        // V6: prepend sentinel byte 0xC0 (first 3 bits = 110 = 6) to signal compression
+        const withSentinel = new Uint8Array(1 + compressed.length);
+        withSentinel[0] = 0xC0;
+        withSentinel.set(compressed, 1);
+        return arrayBufferToBase64Url(withSentinel);
 
     } catch (err) {
         console.error("Failed to bitpack run", err);
@@ -149,9 +155,16 @@ export function encodeRun(run: RunData): string | null {
 }
 
 
-export function decodeRun(base64UrlStr: string): RunData | null {
+export async function decodeRun(base64UrlStr: string): Promise<RunData | null> {
     try {
-        const buffer = base64UrlToArrayBuffer(base64UrlStr);
+        const rawBuffer = base64UrlToArrayBuffer(base64UrlStr);
+        let buffer: Uint8Array;
+        if (rawBuffer.length > 0 && (rawBuffer[0] >> 5) === 6) {
+            // V6: sentinel byte 0xC0 — payload is deflate-compressed
+            buffer = await decompressBytes(rawBuffer.slice(1));
+        } else {
+            buffer = rawBuffer;
+        }
         const reader = new BitReader(buffer);
 
         const version = reader.read(BITS_VERSION);

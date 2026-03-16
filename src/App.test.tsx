@@ -23,7 +23,7 @@ describe('App Component Persistence & Duplicates', () => {
             players: [{ characterName: 'Ironclad', cards: [], relics: [] }],
             meta: { characterName: 'Ironclad', ascension: 0, floor: 1, outcome: 'Victory' }
         };
-        const uid = encodeRun(sampleRun);
+        const uid = await encodeRun(sampleRun);
         localStorage.setItem('sts2_exported_runs', JSON.stringify([uid]));
 
         render(<App />);
@@ -76,7 +76,7 @@ describe('App Component Persistence & Duplicates', () => {
             players: [{ characterName: 'Ironclad', cards: [], relics: [] }],
             meta: { characterName: 'Ironclad', ascension: 0, floor: 1, outcome: 'Victory' }
         };
-        const uid = encodeRun(sampleRun);
+        const uid = await encodeRun(sampleRun);
         localStorage.setItem('sts2_exported_runs', JSON.stringify([uid]));
 
         render(<App />);
@@ -257,7 +257,7 @@ describe('App Component – URL hash loading', () => {
             players: [{ characterName: 'The Ironclad', cards: [], relics: [] }],
             meta: { characterName: 'The Ironclad', ascension: 5, floor: 45, outcome: 'Victory' },
         };
-        const uid = encodeRun(sampleRun);
+        const uid = await encodeRun(sampleRun);
         window.location.hash = `#d=${uid}`;
 
         render(<App />);
@@ -272,7 +272,7 @@ describe('App Component – URL hash loading', () => {
             players: [{ characterName: 'The Ironclad', cards: [], relics: [] }],
             meta: { characterName: 'The Ironclad', ascension: 0, floor: 1, outcome: 'Victory' },
         };
-        const uid = encodeRun(sampleRun);
+        const uid = await encodeRun(sampleRun);
         window.location.hash = `#d=${uid}`;
 
         render(<App />);
@@ -365,7 +365,7 @@ describe('App Component – Browser History (back button)', () => {
             players: [{ characterName: 'The Ironclad', cards: [], relics: [] }],
             meta: { characterName: 'The Ironclad', ascension: 0, floor: 1, outcome: 'Victory' },
         };
-        const uid = encodeRun(sampleRun);
+        const uid = await encodeRun(sampleRun);
         window.location.hash = `#d=${uid}`;
 
         const pushSpy = vi.spyOn(window.history, 'pushState');
@@ -405,7 +405,7 @@ describe('App Component – Browser History (back button)', () => {
             players: [{ characterName: 'The Ironclad', cards: [], relics: [] }],
             meta: { characterName: 'The Ironclad', ascension: 0, floor: 1, outcome: 'Victory' },
         };
-        const uid = encodeRun(sampleRun);
+        const uid = await encodeRun(sampleRun);
 
         const { container } = render(<App />);
         await uploadRun(container, singlePlayerJson);
