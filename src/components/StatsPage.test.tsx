@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StatsPage } from './StatsPage';
 import type { RunData } from '../types';
@@ -322,6 +322,58 @@ describe('StatsPage', () => {
             };
             render(<StatsPage runs={[soloRun, coopRunWithoutLocalPlayer]} />);
             expect(screen.queryByText(/Co-op runs detected/i)).not.toBeInTheDocument();
+        });
+    });
+
+    describe('relic sorting', () => {
+        // relic_alpha: appears in 3 runs (1 win, 2 losses) → wins=1, appearances=3
+        // relic_beta:  appears in 2 runs (2 wins)           → wins=2, appearances=2
+        // Without the fix topAllRelics would be sorted by appearances: [alpha(3), beta(2)],
+        // displaying win badges 1×, 2× — i.e. NOT sorted by the displayed number.
+        // With the fix the badges must be in descending order: 2×, 1×.
+        const relicSortingRuns: RunData[] = [
+            {
+                players: [{ characterName: 'The Ironclad', cards: [], relics: ['relic_alpha'] }],
+                meta: { characterName: 'The Ironclad', ascension: 0, outcome: 'Victory', floor: 40 },
+            },
+            {
+                players: [{ characterName: 'The Ironclad', cards: [], relics: ['relic_alpha'] }],
+                meta: { characterName: 'The Ironclad', ascension: 0, outcome: 'Defeat', floor: 20 },
+            },
+            {
+                players: [{ characterName: 'The Ironclad', cards: [], relics: ['relic_alpha'] }],
+                meta: { characterName: 'The Ironclad', ascension: 0, outcome: 'Defeat', floor: 20 },
+            },
+            {
+                players: [{ characterName: 'The Ironclad', cards: [], relics: ['relic_beta'] }],
+                meta: { characterName: 'The Ironclad', ascension: 0, outcome: 'Victory', floor: 40 },
+            },
+            {
+                players: [{ characterName: 'The Ironclad', cards: [], relics: ['relic_beta'] }],
+                meta: { characterName: 'The Ironclad', ascension: 0, outcome: 'Victory', floor: 40 },
+            },
+        ];
+
+        it('sorts "Most Common Relics Overall" by the displayed (wins) count descending', () => {
+            render(<StatsPage runs={relicSortingRuns} />);
+            const heading = screen.getByText('Most Common Relics Overall');
+            const section = heading.closest('.glass-panel') as HTMLElement;
+            const badges = within(section).getAllByText(/\d+×/);
+            const counts = badges.map(b => parseInt(b.textContent ?? '0', 10));
+            for (let i = 1; i < counts.length; i++) {
+                expect(counts[i]).toBeLessThanOrEqual(counts[i - 1]);
+            }
+        });
+
+        it('sorts "Most Common Relics in Victories" by the displayed (wins) count descending', () => {
+            render(<StatsPage runs={relicSortingRuns} />);
+            const heading = screen.getByText('Most Common Relics in Victories');
+            const section = heading.closest('.glass-panel') as HTMLElement;
+            const badges = within(section).getAllByText(/\d+×/);
+            const counts = badges.map(b => parseInt(b.textContent ?? '0', 10));
+            for (let i = 1; i < counts.length; i++) {
+                expect(counts[i]).toBeLessThanOrEqual(counts[i - 1]);
+            }
         });
     });
 });

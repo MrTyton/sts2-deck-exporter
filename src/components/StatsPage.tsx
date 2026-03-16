@@ -259,11 +259,15 @@ function TopRelicsSection({ relics, title, countType = 'wins', tooltipHandlers }
 }) {
     if (relics.length === 0) return null;
 
+    const sortedRelics = [...relics].sort((a, b) =>
+        countType === 'wins' ? b.wins - a.wins : b.appearances - a.appearances
+    );
+
     return (
         <div className="glass-panel" style={{ padding: '1.25rem 1.5rem', borderRadius: '12px' }}>
             <h3 style={{ color: 'var(--accent-color)', marginBottom: '1rem', fontSize: '1rem', fontFamily: 'var(--font-display)' }}>{title}</h3>
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                {relics.map(({ id, appearances, wins }) => (
+                {sortedRelics.map(({ id, appearances, wins }) => (
                     <div
                         key={id}
                         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', minWidth: '56px', cursor: 'default' }}
