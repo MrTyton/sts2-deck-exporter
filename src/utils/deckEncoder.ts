@@ -28,13 +28,14 @@ const BITS_UPGRADES = 1;           // v0-v2: 1-bit upgraded boolean
 const BITS_UPGRADE_LEVEL = 4;      // v3+:  0-15 upgrade level
 const BITS_ENCHANTMENT_ID = 11;
 const BITS_ENCHANTMENT_AMOUNT = 5; // v3+:  0-31 enchantment amount
-const BITS_COUNT = 4;
+const BITS_COUNT = 4;       // v0-v6: 4 bits (max 15 copies)
+const BITS_COUNT_V7 = 8;    // v7+:  8 bits (max 255 copies)
 
 // v4+: Mad Science variant props (only written/read when card id === 'mad_science')
 const BITS_TINKER_TIME_TYPE  = 2; // CardType: 1=Attack, 2=Skill, 3=Power (fits in 2 bits)
 const BITS_TINKER_TIME_RIDER = 4; // RiderEffect: 0-9 (fits in 4 bits)
 
-const CURRENT_VERSION = 6;
+const CURRENT_VERSION = 7;
 
 export async function encodeRun(run: RunData): Promise<string | null> {
     try {
@@ -123,7 +124,7 @@ export async function encodeRun(run: RunData): Promise<string | null> {
                     writer.writeBool(false);
                 }
 
-                writer.write(Math.min(15, card.count || 1), BITS_COUNT);
+                writer.write(Math.min(255, card.count || 1), BITS_COUNT_V7);
 
                 // v4+: write Mad Science variant props so shared links decode correctly
                 if (card.id.toLowerCase() === 'mad_science') {
@@ -253,7 +254,7 @@ export async function decodeRun(base64UrlStr: string): Promise<RunData | null> {
                     enchantmentAmount = version >= 3 ? reader.read(BITS_ENCHANTMENT_AMOUNT) : 1;
                 }
 
-                const count = reader.read(BITS_COUNT);
+                const count = version >= 7 ? reader.read(BITS_COUNT_V7) : reader.read(BITS_COUNT);
 
                 // v4+: read Mad Science variant props
                 let portraitId: string | undefined;

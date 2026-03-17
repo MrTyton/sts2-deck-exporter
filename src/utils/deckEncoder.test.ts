@@ -234,4 +234,95 @@ describe('Deck Encoder', () => {
         expect(decoded!.meta?.ascension).toBe(0);
         expect(decoded!.players?.length).toBeGreaterThan(0);
     });
+
+    it('V7: round-trips a card with exactly 128 copies (cloned mechanic)', async () => {
+        const run: RunData = {
+            meta: {
+                ascension: 1,
+                floor: 10,
+                outcome: 'Victory',
+                time: '0:10:00',
+                characterName: 'The Ironclad',
+            },
+            players: [
+                {
+                    characterName: 'The Ironclad',
+                    relics: [],
+                    cards: [
+                        { id: 'bash', upgraded: false, upgrades: 0, enchantment: null, count: 128 },
+                    ],
+                    isLocalPlayer: true,
+                },
+            ],
+        };
+
+        const encoded = await encodeRun(run);
+        expect(encoded).toBeTruthy();
+
+        const decoded = await decodeRun(encoded!);
+        expect(decoded).not.toBeNull();
+        expect(decoded!.players![0].cards[0].id).toBe('bash');
+        expect(decoded!.players![0].cards[0].count).toBe(128);
+    });
+
+    it('V7: clamps card count above 255 to 255', async () => {
+        const run: RunData = {
+            meta: {
+                ascension: 0,
+                floor: 1,
+                outcome: 'Victory',
+                time: '0:01:00',
+                characterName: 'The Ironclad',
+            },
+            players: [
+                {
+                    characterName: 'The Ironclad',
+                    relics: [],
+                    cards: [
+                        { id: 'bash', upgraded: false, upgrades: 0, enchantment: null, count: 999 },
+                    ],
+                    isLocalPlayer: true,
+                },
+            ],
+        };
+
+        const encoded = await encodeRun(run);
+        expect(encoded).toBeTruthy();
+
+        const decoded = await decodeRun(encoded!);
+        expect(decoded).not.toBeNull();
+        expect(decoded!.players![0].cards[0].count).toBe(255);
+    });
+
+    it('V7: preserves counts in the 16-127 range that V6 could not store', async () => {
+        const run: RunData = {
+            meta: {
+                ascension: 0,
+                floor: 1,
+                outcome: 'Victory',
+                time: '0:01:00',
+                characterName: 'The Ironclad',
+            },
+            players: [
+                {
+                    characterName: 'The Ironclad',
+                    relics: [],
+                    cards: [
+                        { id: 'bash', upgraded: false, upgrades: 0, enchantment: null, count: 16 },
+                        { id: 'defend_ironclad', upgraded: false, upgrades: 0, enchantment: null, count: 64 },
+                    ],
+                    isLocalPlayer: true,
+                },
+            ],
+        };
+
+        const encoded = await encodeRun(run);
+        expect(encoded).toBeTruthy();
+
+        const decoded = await decodeRun(encoded!);
+        expect(decoded).not.toBeNull();
+        const cards = decoded!.players![0].cards;
+        expect(cards[0].count).toBe(16);
+        expect(cards[1].count).toBe(64);
+    });
 });
