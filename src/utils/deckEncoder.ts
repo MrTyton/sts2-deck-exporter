@@ -1,7 +1,8 @@
 import { idToNum, numToId, charToNum, numToChar } from './encoderDict';
 import { BitWriter, BitReader } from './bitstream';
 import { getCharacterName } from './characterMapper';
-import { compressBytes, decompressBytes } from './compression';
+import { decompressBytes, compressBytesBrotli, decompressBytesBrotli } from './compression';
+import { toBase81, fromBase81 } from './base81';
 import type { RunData, PlayerRunData, ImageExportMeta } from '../types';
 
 // Width Configuration (Version 0)
@@ -142,12 +143,10 @@ export async function encodeRun(run: RunData): Promise<string | null> {
         }
 
         const rawBytes = writer.getUint8Array();
-        const compressed = await compressBytes(rawBytes);
-        // V6: prepend sentinel byte 0xC0 (first 3 bits = 110 = 6) to signal compression
-        const withSentinel = new Uint8Array(1 + compressed.length);
-        withSentinel[0] = 0xC0;
-        withSentinel.set(compressed, 1);
-        return arrayBufferToBase64Url(withSentinel);
+        // Brotli-compress at quality 11, then encode with base81.
+        // '~' prefix distinguishes this new format from legacy base64url strings.
+        const compressed = await compressBytesBrotli(rawBytes);
+        return '~' + toBase81(compressed);
 
     } catch (err) {
         console.error("Failed to bitpack run", err);
@@ -158,13 +157,19 @@ export async function encodeRun(run: RunData): Promise<string | null> {
 
 export async function decodeRun(base64UrlStr: string): Promise<RunData | null> {
     try {
-        const rawBuffer = base64UrlToArrayBuffer(base64UrlStr);
         let buffer: Uint8Array;
-        if (rawBuffer.length > 0 && (rawBuffer[0] >> 5) === 6) {
-            // V6: sentinel byte 0xC0 — payload is deflate-compressed
-            buffer = await decompressBytes(rawBuffer.slice(1));
+        if (base64UrlStr.startsWith('~')) {
+            // New format: '~' prefix + base81-encoded + brotli-compressed bitstream
+            buffer = await decompressBytesBrotli(fromBase81(base64UrlStr.slice(1)));
         } else {
-            buffer = rawBuffer;
+            const rawBuffer = base64UrlToArrayBuffer(base64UrlStr);
+            if (rawBuffer.length > 0 && (rawBuffer[0] >> 5) === 6) {
+                // V6+: sentinel byte 0xC0 — deflate-compressed
+                buffer = await decompressBytes(rawBuffer.slice(1));
+            } else {
+                // Pre-v6: uncompressed raw bitstream
+                buffer = rawBuffer;
+            }
         }
         const reader = new BitReader(buffer);
 
@@ -327,19 +332,6 @@ function formatSecondsToTime(totalSeconds: number): string {
         return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     }
     return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-function arrayBufferToBase64Url(uint8Array: Uint8Array): string {
-    let binary = '';
-    const len = uint8Array.byteLength;
-    for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(uint8Array[i]);
-    }
-    // Using a safe fallback for btoa
-    const base64 = (typeof btoa !== 'undefined')
-        ? btoa(binary)
-        : Buffer.from(binary, 'binary').toString('base64');
-    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
 function base64UrlToArrayBuffer(base64url: string): Uint8Array {

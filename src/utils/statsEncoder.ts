@@ -1,7 +1,8 @@
 import { idToNum, numToId, charToNum, numToChar } from './encoderDict';
 import { BitWriter, BitReader } from './bitstream';
 import { getCharacterName } from './characterMapper';
-import { compressBytes, decompressBytes } from './compression';
+import { decompressBytes, compressBytesBrotli, decompressBytesBrotli } from './compression';
+import { toBase81, fromBase81 } from './base81';
 import type { StatsSnapshot, StatsTableRow, StatsTopCard, StatsTopRelic } from './statsImageExport';
 import type { CardData } from '../types';
 
@@ -22,14 +23,7 @@ const BITS_RELIC_ID   = 11; // matches deckEncoder
 const BITS_COUNT_16   = 16; // V0 appearance / win counters
 const BITS_COUNT_12   = 12; // V1 appearance / win counters (max 4 095)
 
-// ── Base64url helpers ─────────────────────────────────────────────────────────
-function toBase64Url(arr: Uint8Array): string {
-    let binary = '';
-    for (let i = 0; i < arr.byteLength; i++) binary += String.fromCharCode(arr[i]);
-    const b64 = (typeof btoa !== 'undefined') ? btoa(binary) : Buffer.from(binary, 'binary').toString('base64');
-    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
+// ── Base64url decode helper (used for legacy URL backward compat) ────────────
 function fromBase64Url(s: string): Uint8Array {
     let b64 = s.replace(/-/g, '+').replace(/_/g, '/');
     while (b64.length % 4 !== 0) b64 += '=';
@@ -232,13 +226,22 @@ export async function encodeStats(snapshot: StatsSnapshot): Promise<string> {
     w.write(topAllRelics.length, BITS_LIST_COUNT);
     for (const e of topAllRelics) wRelic(w, e);
 
-    const compressed = await compressBytes(w.getUint8Array());
-    return toBase64Url(compressed);
+    // Brotli-compress at quality 11, then encode with base81.
+    // '~' prefix distinguishes this new format from legacy base64url strings.
+    const compressed = await compressBytesBrotli(w.getUint8Array());
+    return '~' + toBase81(compressed);
 }
 
 export async function decodeStats(str: string): Promise<StatsSnapshot | null> {
     try {
-        const decompressed = await decompressBytes(fromBase64Url(str));
+        let decompressed: Uint8Array;
+        if (str.startsWith('~')) {
+            // New format: '~' prefix + base81-encoded + brotli-compressed bitstream
+            decompressed = await decompressBytesBrotli(fromBase81(str.slice(1)));
+        } else {
+            // Legacy format: base64url-encoded deflate-compressed bitstream
+            decompressed = await decompressBytes(fromBase64Url(str));
+        }
         const r = new BitReader(decompressed);
         const version = r.read(BITS_VERSION);
         if (version > STATS_VERSION) {

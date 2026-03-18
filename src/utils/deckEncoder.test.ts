@@ -325,4 +325,31 @@ describe('Deck Encoder', () => {
         expect(cards[0].count).toBe(16);
         expect(cards[1].count).toBe(64);
     });
+
+    it('new format: encoded string starts with ~ prefix (base81+brotli marker)', async () => {
+        const run: RunData = {
+            meta: { ascension: 10, floor: 35, outcome: 'Victory', time: '0:45:00', characterName: 'The Ironclad' },
+            players: [{ characterName: 'The Ironclad', relics: ['vajra'], cards: [
+                { id: 'bash', upgraded: true, upgrades: 1, enchantment: null, count: 1 },
+            ], isLocalPlayer: true }],
+        };
+        const encoded = await encodeRun(run);
+        expect(encoded).toBeTruthy();
+        expect(encoded!.startsWith('~')).toBe(true);
+        // Must round-trip cleanly
+        const decoded = await decodeRun(encoded!);
+        expect(decoded).not.toBeNull();
+        expect(decoded!.meta?.ascension).toBe(10);
+    });
+
+    it('backward compat: V7 multi-player URL from real run still decodes', async () => {
+        // This is a real shared URL hash produced by the V7 encoder (base64url + deflate).
+        // It must still decode correctly after the base81+brotli upgrade.
+        const v7String = 'wAHQAC__5bQTQWm6E-RERUkwRPLaHANaZyolMSpVnq6Z82BvKu2PpiNACF3EBI8EBAMAAgUAAgjEAgpEAg_EAhkEAhvAAiyAAjRC5YQCP4QCRMQCT8ACbsACeIQCecQCkcQCJBnrR1hNTXg3puq3G5MjWY1tvKu2_rgdEiADAIICEiICQ8ICACABAGABAIABAMIBAoABBYABBYIBBkIBCeNzIQEJ4AEMIAEOIAEXAAEZ4AEbAAEbgAEkI3OiASzgAS2CATDCATqAAT5CAUHCAULAAUkAAQ';
+        const decoded = await decodeRun(v7String);
+        expect(decoded).not.toBeNull();
+        expect(decoded!.players?.length).toBeGreaterThanOrEqual(2);
+        console.log(`V7 multi-player hash length: ${v7String.length} chars`);
+    });
 });
+
