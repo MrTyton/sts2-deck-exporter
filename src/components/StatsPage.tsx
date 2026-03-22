@@ -2,7 +2,8 @@ import { useMemo, useState, useCallback } from 'react';
 import { formatCardName, getCardPortraitId } from '../utils/cardUtils';
 import { generateStatsImage } from '../utils/statsImageExport';
 import { encodeStats } from '../utils/statsEncoder';
-import type { StatsTableRow, StatsTopCard, StatsTopRelic, StatsSnapshot } from '../utils/statsImageExport';
+import { formatEncounterName, getEncounterAct } from '../utils/encounterDict';
+import type { StatsTableRow, StatsTopCard, StatsTopRelic, StatsSnapshot, EncounterStat } from '../utils/statsImageExport';
 import { Tooltip } from './Tooltip';
 import { getCardTooltip, getRelicTooltip } from '../utils/tooltipUtils';
 import type { TooltipContent } from '../utils/tooltipUtils';
@@ -299,6 +300,71 @@ function TopRelicsSection({ relics, title, countType = 'wins', tooltipHandlers }
     );
 }
 
+function EncounterTable({ title, rows, iconUrl }: { title: string; rows: EncounterStat[]; iconUrl?: string }) {
+    if (rows.length === 0) return null;
+
+    const thStyle: React.CSSProperties = {
+        padding: '0.5rem 0.75rem',
+        textAlign: 'left',
+        color: 'var(--text-secondary)',
+        fontSize: '0.78rem',
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+        borderBottom: '1px solid var(--surface-border)',
+    };
+    const tdStyle: React.CSSProperties = {
+        padding: '0.55rem 0.75rem',
+        fontSize: '0.9rem',
+        borderBottom: '1px solid rgba(255,255,255,0.04)',
+        whiteSpace: 'nowrap',
+    };
+    const numStyle: React.CSSProperties = { ...tdStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' };
+
+    return (
+        <div className="glass-panel" style={{ padding: '1.25rem 1.5rem', borderRadius: '12px' }}>
+            <h3 style={{ color: 'var(--accent-color)', marginBottom: '1rem', fontSize: '1rem', fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {iconUrl && <img src={iconUrl} alt="" style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: '4px', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
+                {title}
+            </h3>
+            <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        <tr>
+                            <th style={thStyle}>Name</th>
+                            <th style={{ ...thStyle, textAlign: 'center' }}>Act</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>Fought</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>Beaten</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>Died To</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>Beat%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((row) => (
+                            <tr key={row.id} style={{ transition: 'background 0.15s' }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                            >
+                                <td style={{ ...tdStyle, fontWeight: 600 }}>{formatEncounterName(row.id)}</td>
+                                <td style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                                    {getEncounterAct(row.id) != null ? `Act ${getEncounterAct(row.id)}` : '—'}
+                                </td>
+                                <td style={numStyle}>{row.encounters}</td>
+                                <td style={{ ...numStyle, color: 'var(--tooltip-green)' }}>{row.beaten}</td>
+                                <td style={{ ...numStyle, color: row.diedTo > 0 ? 'var(--tooltip-red)' : 'var(--text-secondary)' }}>{row.diedTo}</td>
+                                <td style={{ ...numStyle, color: row.beaten / row.encounters >= 0.5 ? 'var(--tooltip-green)' : 'var(--text-primary)' }}>
+                                    {pct(row.beaten, row.encounters)}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export function StatsPage({ runs, sharedStats }: StatsPageProps) {
@@ -547,6 +613,103 @@ export function StatsPage({ runs, sharedStats }: StatsPageProps) {
             }))
             .filter(({ cards }) => cards.length > 0);
 
+        // ── Boss & elite encounter statistics ──────────────────────────────────
+        // These are only populated for runs that loaded encounter data from their
+        // .run file (or decoded it from a V9+ encoded URL).
+        const bossMap: Record<string, { encounters: number; beaten: number; diedTo: number }> = {};
+        const eliteMap: Record<string, { encounters: number; beaten: number; diedTo: number }> = {};
+
+        for (const run of runs) {
+            const isDefeat = run.meta?.outcome === 'Defeat';
+            const killedBy = run.meta?.killedBy;
+
+            for (const bossId of (run.meta?.bossEncounters ?? [])) {
+                if (!bossMap[bossId]) bossMap[bossId] = { encounters: 0, beaten: 0, diedTo: 0 };
+                bossMap[bossId].encounters++;
+                if (isDefeat && killedBy === bossId) bossMap[bossId].diedTo++;
+                else bossMap[bossId].beaten++;
+            }
+
+            for (const eliteId of (run.meta?.eliteEncounters ?? [])) {
+                if (!eliteMap[eliteId]) eliteMap[eliteId] = { encounters: 0, beaten: 0, diedTo: 0 };
+                eliteMap[eliteId].encounters++;
+                if (isDefeat && killedBy === eliteId) eliteMap[eliteId].diedTo++;
+                else eliteMap[eliteId].beaten++;
+            }
+        }
+
+        const bossStats: EncounterStat[] = Object.entries(bossMap)
+            .sort((a, b) => b[1].encounters - a[1].encounters)
+            .map(([id, d]) => ({ id, ...d }));
+
+        const eliteStats: EncounterStat[] = Object.entries(eliteMap)
+            .sort((a, b) => b[1].diedTo - a[1].diedTo || b[1].encounters - a[1].encounters)
+            .map(([id, d]) => ({ id, ...d }));
+
+        // ── Per-character boss & elite stats ──────────────────────────────────
+        // Uses the same stat-player attribution logic as cards/relics.
+        type EncMap = Record<string, { encounters: number; beaten: number; diedTo: number }>;
+        const bossByCharMap: Record<string, EncMap> = {};
+        const eliteByCharMap: Record<string, EncMap> = {};
+
+        for (const run of runs) {
+            const isDefeat = run.meta?.outcome === 'Defeat';
+            const killedBy = run.meta?.killedBy;
+
+            const allPlayers = run.players ?? (run.meta?.characterName
+                ? [{ characterName: run.meta.characterName } as { characterName: string; isLocalPlayer?: boolean }]
+                : []);
+            const isMultiplayer = allPlayers.length > 1;
+            let charNames: string[];
+            if (!isMultiplayer) {
+                charNames = allPlayers.map(p => p.characterName);
+            } else {
+                const localP = allPlayers.find(p => p.isLocalPlayer === true);
+                charNames = localP ? [localP.characterName] : [allPlayers[0].characterName];
+            }
+
+            for (const char of charNames) {
+                if (!bossByCharMap[char]) bossByCharMap[char] = {};
+                if (!eliteByCharMap[char]) eliteByCharMap[char] = {};
+
+                for (const bossId of (run.meta?.bossEncounters ?? [])) {
+                    if (!bossByCharMap[char][bossId]) bossByCharMap[char][bossId] = { encounters: 0, beaten: 0, diedTo: 0 };
+                    bossByCharMap[char][bossId].encounters++;
+                    if (isDefeat && killedBy === bossId) bossByCharMap[char][bossId].diedTo++;
+                    else bossByCharMap[char][bossId].beaten++;
+                }
+
+                for (const eliteId of (run.meta?.eliteEncounters ?? [])) {
+                    if (!eliteByCharMap[char][eliteId]) eliteByCharMap[char][eliteId] = { encounters: 0, beaten: 0, diedTo: 0 };
+                    eliteByCharMap[char][eliteId].encounters++;
+                    if (isDefeat && killedBy === eliteId) eliteByCharMap[char][eliteId].diedTo++;
+                    else eliteByCharMap[char][eliteId].beaten++;
+                }
+            }
+        }
+
+        const charSortKey = (name: string) => -(byChar[name]?.runs ?? 0);
+
+        const bossByCharStats: Array<{ charName: string; rows: EncounterStat[] }> = Object.entries(bossByCharMap)
+            .sort((a, b) => charSortKey(a[0]) - charSortKey(b[0]))
+            .map(([charName, encMap]) => ({
+                charName,
+                rows: Object.entries(encMap)
+                    .sort((a, b) => b[1].encounters - a[1].encounters)
+                    .map(([id, d]) => ({ id, ...d })),
+            }))
+            .filter(({ rows }) => rows.length > 0);
+
+        const elitesByCharStats: Array<{ charName: string; rows: EncounterStat[] }> = Object.entries(eliteByCharMap)
+            .sort((a, b) => charSortKey(a[0]) - charSortKey(b[0]))
+            .map(([charName, encMap]) => ({
+                charName,
+                rows: Object.entries(encMap)
+                    .sort((a, b) => b[1].diedTo - a[1].diedTo || b[1].encounters - a[1].encounters)
+                    .map(([id, d]) => ({ id, ...d })),
+            }))
+            .filter(({ rows }) => rows.length > 0);
+
         return {
             totalRuns,
             wins,
@@ -570,6 +733,10 @@ export function StatsPage({ runs, sharedStats }: StatsPageProps) {
             // Show warning only when fallback was needed AND we never identified the local player
             // anywhere in the run set (i.e. no solo run or v5 co-op run was present).
             multiplayerFallback: multiplayerFallbackUsed && !hasAnyIdentifiedPlayer,
+            bossStats,
+            eliteStats,
+            bossByCharStats,
+            elitesByCharStats,
         };
     }, [runs, sharedStats]);
 
@@ -717,6 +884,44 @@ export function StatsPage({ runs, sharedStats }: StatsPageProps) {
             )}
             {stats.topAllRelics.length > 0 && (
                 <TopRelicsSection relics={stats.topAllRelics} title="Most Common Relics Overall" tooltipHandlers={relicTooltipHandlers} />
+            )}
+
+            {/* Boss & Elite Encounter stats (only shown when data is available) */}
+            {stats.bossStats && stats.bossStats.length > 0 && (
+                <EncounterTable title="Boss Record" rows={stats.bossStats} />
+            )}
+            {stats.bossByCharStats && stats.bossByCharStats.length > 1 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <h3 style={{ color: 'var(--accent-color)', fontSize: '1rem', fontFamily: 'var(--font-display)', margin: 0 }}>
+                        Boss Record by Character
+                    </h3>
+                    {stats.bossByCharStats.map(({ charName, rows }) => (
+                        <EncounterTable
+                            key={charName}
+                            title={charName}
+                            rows={rows}
+                            iconUrl={charIconUrl(charName) ?? undefined}
+                        />
+                    ))}
+                </div>
+            )}
+            {stats.eliteStats && stats.eliteStats.length > 0 && (
+                <EncounterTable title="Elite Encounters" rows={stats.eliteStats} />
+            )}
+            {stats.elitesByCharStats && stats.elitesByCharStats.length > 1 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <h3 style={{ color: 'var(--accent-color)', fontSize: '1rem', fontFamily: 'var(--font-display)', margin: 0 }}>
+                        Elite Encounters by Character
+                    </h3>
+                    {stats.elitesByCharStats.map(({ charName, rows }) => (
+                        <EncounterTable
+                            key={charName}
+                            title={charName}
+                            rows={rows}
+                            iconUrl={charIconUrl(charName) ?? undefined}
+                        />
+                    ))}
+                </div>
             )}
         </div>
 

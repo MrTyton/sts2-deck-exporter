@@ -49,6 +49,18 @@ export interface ImageExportMeta {
     buildId?: string;
     /** Index into patchList.json (0-based). Used to look up patch-specific card values and text. */
     patchIndex?: number;
+    /** Game mode (e.g. "standard"). Omitted when "standard" to save space. */
+    gameMode?: string;
+    /**
+     * The encounter that killed the player, as a lowercased encounter‑dict key
+     * (e.g. "waterfall_giant_boss"). Set only for Defeat runs.
+     * Use the sentinel "event_kill" when death was caused by an in‑game event.
+     */
+    killedBy?: string;
+    /** Ordered list of boss encounter IDs fought during the run (e.g. ["waterfall_giant_boss", …]). */
+    bossEncounters?: string[];
+    /** Ordered list of elite encounter IDs fought during the run. */
+    eliteEncounters?: string[];
 }
 
 export interface RunData {

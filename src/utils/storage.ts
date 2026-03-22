@@ -30,6 +30,19 @@ export function saveRunUID(bitpacked: string) {
 }
 
 /**
+ * Removes a single bitpacked run UID from localStorage.
+ */
+export function removeRunUID(bitpacked: string) {
+    try {
+        const current = getSavedRunUIDs();
+        const updated = current.filter(uid => uid !== bitpacked);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch (err) {
+        console.error("Failed to remove run from storage", err);
+    }
+}
+
+/**
  * Clears all saved runs from localStorage.
  */
 export function clearSavedRuns() {

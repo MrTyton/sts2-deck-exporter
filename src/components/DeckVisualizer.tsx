@@ -3,6 +3,7 @@ import { generateDeckImage } from '../utils/canvasExport';
 import { formatCardName, getCardPortraitId } from '../utils/cardUtils';
 import { Tooltip } from './Tooltip';
 import { getCardTooltip, getRelicTooltip } from '../utils/tooltipUtils';
+import { formatEncounterName } from '../utils/encounterDict';
 import type { TooltipContent } from '../utils/tooltipUtils';
 import type { CardData, RunData } from '../types';
 
@@ -123,6 +124,45 @@ export function DeckVisualizer({ run }: DeckVisualizerProps) {
                                     Patch <strong>{run.meta.buildId}</strong>
                                 </span>
                             )}
+                            {run.meta.gameMode && (
+                                <span style={{ background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', textTransform: 'capitalize' }}>
+                                    <strong>{run.meta.gameMode}</strong>
+                                </span>
+                            )}
+                            {run.meta.killedBy && (
+                                <span style={{ background: 'rgba(224,82,82,0.12)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(224,82,82,0.3)', color: 'var(--tooltip-red)' }}>
+                                    Killed by <strong>{formatEncounterName(run.meta.killedBy)}</strong>
+                                </span>
+                            )}
+                        </div>
+                    )}
+
+                    {run.meta?.bossEncounters && run.meta.bossEncounters.length > 0 && (
+                        <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.72rem' }}>Bosses</span>
+                            {run.meta.bossEncounters.map((bossId, idx) => {
+                                const isKiller = bossId === run.meta?.killedBy;
+                                return (
+                                    <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        {idx > 0 && <span style={{ opacity: 0.4 }}>→</span>}
+                                        <span style={{
+                                            background: isKiller ? 'rgba(224,82,82,0.12)' : 'rgba(255,255,255,0.05)',
+                                            color: isKiller ? 'var(--tooltip-red)' : 'var(--text-primary)',
+                                            border: isKiller ? '1px solid rgba(224,82,82,0.3)' : '1px solid rgba(255,255,255,0.1)',
+                                            padding: '2px 8px 2px 4px', borderRadius: '5px',
+                                            display: 'inline-flex', alignItems: 'center', gap: '5px'
+                                        }}>
+                                            <img
+                                                src={`${import.meta.env.BASE_URL}assets/bosses/${bossId}.webp`}
+                                                alt=""
+                                                style={{ width: 22, height: 22, objectFit: 'cover', borderRadius: '3px', flexShrink: 0 }}
+                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                            />
+                                            {formatEncounterName(bossId)}
+                                        </span>
+                                    </span>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

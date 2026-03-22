@@ -1,4 +1,5 @@
 import { idToNum, numToId, charToNum, numToChar } from './encoderDict';
+import { encounterToNum, numToEncounter, KILLED_BY_EVENT_NUM, KILLED_BY_EVENT_ID } from './encounterDict';
 import { BitWriter, BitReader } from './bitstream';
 import { getCharacterName } from './characterMapper';
 import { decompressBytes, compressBytesBrotli, decompressBytesBrotli } from './compression';
@@ -45,7 +46,14 @@ const BITS_TINKER_TIME_RIDER = 4; // RiderEffect: 0-9 (fits in 4 bits)
 // v8+: game patch index (0-127, maps to patchList.json)
 const BITS_PATCH_INDEX = 7; // supports up to 128 distinct game patches
 
-const CURRENT_VERSION = 8;
+// v9+: run metadata extras
+const BITS_GAME_MODE       = 2;  // 0=standard, 1=other/unknown, 2-3=reserved
+const BITS_KILLED_BY       = 8;  // 0=none, 1-87=encounter dict, 255=event kill
+const BITS_NUM_BOSS_ENC    = 4;  // max 15 bosses per run
+const BITS_NUM_ELITE_ENC   = 4;  // max 15 elites per run
+const BITS_ENCOUNTER_ID    = 8;  // matches encounterDict.ts (max 255)
+
+const CURRENT_VERSION = 9;
 
 export async function encodeRun(run: RunData): Promise<string | null> {
     try {
@@ -81,6 +89,36 @@ export async function encodeRun(run: RunData): Promise<string | null> {
         // v8+: game patch index (0-127)
         const patchIndex = Math.min(127, run.meta?.patchIndex ?? CURRENT_PATCH_INDEX);
         writer.write(patchIndex, BITS_PATCH_INDEX);
+
+        // v9+: game mode (0=standard/default, 1=other)
+        const gameModeNum = run.meta?.gameMode ? 1 : 0;
+        writer.write(gameModeNum, BITS_GAME_MODE);
+
+        // v9+: killed-by encounter (0=not killed, 255=event kill, else encounter dict)
+        const killedBy = run.meta?.killedBy;
+        let killedByNum = 0;
+        if (killedBy) {
+            if (killedBy === KILLED_BY_EVENT_ID) {
+                killedByNum = KILLED_BY_EVENT_NUM;
+            } else {
+                killedByNum = encounterToNum[killedBy] ?? 0;
+            }
+        }
+        writer.write(killedByNum, BITS_KILLED_BY);
+
+        // v9+: boss encounters (up to 15, each 8-bit encounter dict index)
+        const bossEncs = run.meta?.bossEncounters ?? [];
+        writer.write(Math.min(15, bossEncs.length), BITS_NUM_BOSS_ENC);
+        for (let b = 0; b < Math.min(15, bossEncs.length); b++) {
+            writer.write(encounterToNum[bossEncs[b]] ?? 0, BITS_ENCOUNTER_ID);
+        }
+
+        // v9+: elite encounters (up to 15, each 8-bit encounter dict index)
+        const eliteEncs = run.meta?.eliteEncounters ?? [];
+        writer.write(Math.min(15, eliteEncs.length), BITS_NUM_ELITE_ENC);
+        for (let e = 0; e < Math.min(15, eliteEncs.length); e++) {
+            writer.write(encounterToNum[eliteEncs[e]] ?? 0, BITS_ENCOUNTER_ID);
+        }
 
         // Normalize players vs legacy single run format
         let players: PlayerRunData[] = run.players || [];
@@ -225,6 +263,46 @@ export async function decodeRun(base64UrlStr: string): Promise<RunData | null> {
 
         const buildId = patchIndex !== undefined ? (PATCH_LIST[patchIndex] ?? undefined) : undefined;
 
+        // v9+: game mode, killed-by, boss/elite encounter lists
+        let gameMode: string | undefined;
+        let killedBy: string | undefined;
+        let bossEncounters: string[] | undefined;
+        let eliteEncounters: string[] | undefined;
+
+        if (version >= 9) {
+            const gameModeNum = reader.read(BITS_GAME_MODE);
+            // We only encoded 0=standard (stored as undefined) / 1=other
+            // For now treat any non-zero as "other" without a display name
+            gameMode = gameModeNum !== 0 ? 'custom' : undefined;
+
+            const killedByNum = reader.read(BITS_KILLED_BY);
+            if (killedByNum === KILLED_BY_EVENT_NUM) {
+                killedBy = KILLED_BY_EVENT_ID;
+            } else if (killedByNum > 0) {
+                killedBy = numToEncounter[killedByNum];
+            }
+
+            const numBossEncs = reader.read(BITS_NUM_BOSS_ENC);
+            if (numBossEncs > 0) {
+                bossEncounters = [];
+                for (let b = 0; b < numBossEncs; b++) {
+                    const encNum = reader.read(BITS_ENCOUNTER_ID);
+                    const encId = numToEncounter[encNum];
+                    if (encId) bossEncounters.push(encId);
+                }
+            }
+
+            const numEliteEncs = reader.read(BITS_NUM_ELITE_ENC);
+            if (numEliteEncs > 0) {
+                eliteEncounters = [];
+                for (let e = 0; e < numEliteEncs; e++) {
+                    const encNum = reader.read(BITS_ENCOUNTER_ID);
+                    const encId = numToEncounter[encNum];
+                    if (encId) eliteEncounters.push(encId);
+                }
+            }
+        }
+
         let meta: ImageExportMeta = {
             ascension,
             floor,
@@ -233,6 +311,10 @@ export async function decodeRun(base64UrlStr: string): Promise<RunData | null> {
             timestamp,
             buildId,
             patchIndex,
+            gameMode,
+            killedBy,
+            bossEncounters,
+            eliteEncounters,
         };
 
         const numPlayersBits = (version === 0) ? V0_BITS_NUM_PLAYERS : V1_BITS_NUM_PLAYERS;

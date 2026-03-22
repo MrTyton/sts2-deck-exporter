@@ -9,7 +9,7 @@ import { getCharacterName } from './utils/characterMapper'
 import { encodeRun, decodeRun } from './utils/deckEncoder'
 import { decodeStats } from './utils/statsEncoder'
 import type { StatsSnapshot } from './utils/statsImageExport'
-import { getSavedRunUIDs, saveRunUID, clearSavedRuns, getLocalNetId, saveLocalNetId } from './utils/storage'
+import { getSavedRunUIDs, saveRunUID, removeRunUID, clearSavedRuns, getLocalNetId, saveLocalNetId } from './utils/storage'
 import { buildIdToPatchIndex } from './utils/patchUtils'
 
 function App() {
@@ -211,6 +211,17 @@ function App() {
         setIsSharedView(false);
         const jsonArray = Array.isArray(rawJsons) ? rawJsons : [rawJsons];
         const currentUIDs = getSavedRunUIDs();
+
+        // Build a timestamp → storedUID map so re-uploading a run replaces its old
+        // encoding (e.g. V8 → V9) rather than creating a duplicate entry.
+        const timestampToUID = new Map<number, string>();
+        for (const uid of currentUIDs) {
+            try {
+                const decoded = await decodeRun(uid);
+                if (decoded?.meta?.timestamp) timestampToUID.set(decoded.meta.timestamp, uid);
+            } catch { /* ignore corrupt entries */ }
+        }
+
         const addedUIDsInThisBatch = new Set<string>();
 
         // Detect the local player's Steam ID from solo runs.
@@ -228,17 +239,49 @@ function App() {
         }
 
         const newRuns: RunData[] = [];
+        // Runs already in storage whose encoding is being upgraded (e.g. V8 → V9).
+        const upgradedRuns: { timestamp: number; run: RunData }[] = [];
+        // Prevents double-processing when the same timestamp appears multiple times in one batch.
+        const processedTimestamps = new Set<number>();
         for (const rawJson of jsonArray) {
             let runLengthStr: string | number = "?";
+            const bossEncounters: string[] = [];
+            const eliteEncounters: string[] = [];
             if (rawJson.map_point_history) {
                 let totalFloors = rawJson.map_point_history.reduce((acc: number, act: any[]) => acc + act.length, 0);
                 runLengthStr = totalFloors;
+                // Extract boss and elite encounters in encounter order
+                for (const act of rawJson.map_point_history) {
+                    for (const floor of act) {
+                        for (const room of (floor.rooms ?? [])) {
+                            if (room.model_id) {
+                                const encId = (room.model_id as string).replace('ENCOUNTER.', '').toLowerCase();
+                                if (room.room_type === 'boss') bossEncounters.push(encId);
+                                else if (room.room_type === 'elite') eliteEncounters.push(encId);
+                            }
+                        }
+                    }
+                }
             }
 
             const ascension = rawJson.ascension || 0;
             const outcome = rawJson.win ? "Victory" : (rawJson.was_abandoned ? "Abandoned" : "Defeat");
             const timeStr = rawJson.run_time ? formatTime(rawJson.run_time) : undefined;
             const timestamp = rawJson.start_time;
+
+            // Determine what killed the player (only set for Defeat outcome)
+            let killedBy: string | undefined;
+            if (outcome === 'Defeat') {
+                const kbEnc = rawJson.killed_by_encounter as string | undefined;
+                const kbEvt = rawJson.killed_by_event as string | undefined;
+                if (kbEnc && kbEnc !== 'NONE.NONE') {
+                    killedBy = kbEnc.replace('ENCOUNTER.', '').toLowerCase();
+                } else if (kbEvt && kbEvt !== 'NONE.NONE') {
+                    killedBy = 'event_kill';
+                }
+            }
+
+            const gameMode = rawJson.game_mode as string | undefined;
 
             const isSoloRun = rawJson.players.length === 1;
             const playersData: PlayerRunData[] = rawJson.players.map((player: any) => {
@@ -273,7 +316,11 @@ function App() {
                 time: timeStr,
                 timestamp: timestamp,
                 buildId,
-                patchIndex: buildIdToPatchIndex(buildId)
+                patchIndex: buildIdToPatchIndex(buildId),
+                gameMode: gameMode !== 'standard' ? gameMode : undefined,
+                killedBy,
+                bossEncounters: bossEncounters.length > 0 ? bossEncounters : undefined,
+                eliteEncounters: eliteEncounters.length > 0 ? eliteEncounters : undefined,
             };
 
             const run: RunData = {
@@ -285,7 +332,17 @@ function App() {
             try {
                 const bitpacked = await encodeRun(run);
                 if (bitpacked) {
-                    if (!currentUIDs.includes(bitpacked) && !addedUIDsInThisBatch.has(bitpacked)) {
+                    const ts = run.meta?.timestamp;
+                    const existingUID = ts ? timestampToUID.get(ts) : undefined;
+                    if (existingUID && !processedTimestamps.has(ts!)) {
+                        // Upgrade: same run re-uploaded with a newer encoding (e.g. V8 → V9).
+                        // Replace the old UID so no duplicate is created.
+                        processedTimestamps.add(ts!);
+                        removeRunUID(existingUID);
+                        saveRunUID(bitpacked);
+                        addedUIDsInThisBatch.add(bitpacked);
+                        upgradedRuns.push({ timestamp: ts!, run });
+                    } else if (!existingUID && !currentUIDs.includes(bitpacked) && !addedUIDsInThisBatch.has(bitpacked)) {
                         newRuns.push(run);
                         saveRunUID(bitpacked);
                         addedUIDsInThisBatch.add(bitpacked);
@@ -296,7 +353,16 @@ function App() {
             }
         }
 
-        setRuns(prev => [...prev, ...newRuns]);
+        setRuns(prev => {
+            // Apply upgrades first (replace old decoded run with newly parsed one).
+            let updated = [...prev];
+            for (const { timestamp, run } of upgradedRuns) {
+                const idx = updated.findIndex(r => r.meta?.timestamp === timestamp);
+                if (idx >= 0) updated[idx] = run;
+                else updated.push(run);
+            }
+            return [...updated, ...newRuns];
+        });
     }, [])
 
     return (

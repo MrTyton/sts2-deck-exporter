@@ -115,7 +115,7 @@ describe('generateDeckImage', () => {
 
         // Badge text is split into parts for bold rendering; "Patch v" is the non-digit prefix
         const calls = ctx.fillText.mock.calls.map((call: any[]) => call[0] as string);
-        expect(calls.some(t => t === 'Patch v')).toBe(true);
+        expect(calls.some((t: string) => t === 'Patch v')).toBe(true);
     });
 
     it('does not include patch badge text when buildId is absent', async () => {
@@ -126,7 +126,7 @@ describe('generateDeckImage', () => {
         const ctx: any = canvas.getContext('2d');
 
         const calls = ctx.fillText.mock.calls.map((call: any[]) => call[0] as string);
-        expect(calls.some(t => typeof t === 'string' && t.startsWith('Patch'))).toBe(false);
+        expect(calls.some((t: string) => typeof t === 'string' && t.startsWith('Patch'))).toBe(false);
     });
 
     it('wraps multiplayer character names if they are too long', async () => {

@@ -1,5 +1,6 @@
 import type { RunData } from '../types';
 import { formatCardName, getCardPortraitId } from './cardUtils';
+import { formatEncounterName } from './encounterDict';
 
 const imageCache = new Map<string, HTMLImageElement | null>();
 
@@ -76,7 +77,13 @@ export async function generateDeckImage(run: RunData): Promise<HTMLCanvasElement
     currentY += titleHeight;
 
     if (run.meta) {
-        currentY += 60; // run info (Ascension, Floor, Outcome)
+        currentY += 60; // run info badges (Ascension, Floor, Outcome…)
+        if (run.meta.killedBy) {
+            currentY += 48; // killed-by row
+        }
+        if (run.meta.bossEncounters && run.meta.bossEncounters.length > 0) {
+            currentY += 44; // bosses row (with icons)
+        }
     }
     currentY += 40; // spacing before players
 
@@ -191,6 +198,10 @@ export async function generateDeckImage(run: RunData): Promise<HTMLCanvasElement
         if (run.meta.buildId) {
             badges.push(`Patch ${run.meta.buildId}`);
         }
+        if (run.meta.gameMode) {
+            badges.push(run.meta.gameMode.charAt(0).toUpperCase() + run.meta.gameMode.slice(1));
+        }
+        // killedBy is drawn separately below the badges row
 
         ctx.font = '28px sans-serif';
         const badgePaddingX = 20;
@@ -242,6 +253,83 @@ export async function generateDeckImage(run: RunData): Promise<HTMLCanvasElement
         });
 
         drawY += 60;
+
+        // Killed-by row: red badge on its own line
+        if (run.meta.killedBy) {
+            ctx.font = '28px sans-serif';
+            const textWidth = ctx.measureText('Killed by ').width + (() => {
+                ctx.font = 'bold 28px sans-serif';
+                const w = ctx.measureText(formatEncounterName(run.meta.killedBy)).width;
+                ctx.font = '28px sans-serif';
+                return w;
+            })();
+            const badgePaddingX = 20;
+            const badgePaddingY = 8;
+            const badgeWidth = textWidth + badgePaddingX * 2;
+            const badgeHeight = 28 + badgePaddingY * 2;
+
+            ctx.fillStyle = 'rgba(224,82,82,0.12)';
+            ctx.beginPath();
+            ctx.roundRect(padding, drawY, badgeWidth, badgeHeight, 8);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(224,82,82,0.35)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Draw "Killed by " in muted red, then the name in bold red
+            let kx = padding + badgePaddingX;
+            const ky = drawY + badgePaddingY + 22;
+            ctx.fillStyle = '#e05252';
+            ctx.font = '28px sans-serif';
+            ctx.fillText('Killed by ', kx, ky);
+            kx += ctx.measureText('Killed by ').width;
+            ctx.font = 'bold 28px sans-serif';
+            ctx.fillText(formatEncounterName(run.meta.killedBy), kx, ky);
+
+            drawY += 48;
+        }
+
+        // Bosses row (if the run recorded boss encounters)
+        if (run.meta.bossEncounters && run.meta.bossEncounters.length > 0) {
+            const bossIconSize = 32;
+            const bossIconGap = 8;
+            const bossIcons = await Promise.all(
+                run.meta.bossEncounters.map(id =>
+                    loadImage(`${import.meta.env.BASE_URL}assets/bosses/${id}.webp`)
+                )
+            );
+
+            ctx.font = '600 22px sans-serif';
+            ctx.fillStyle = '#90929c';
+            ctx.fillText('BOSSES', padding, drawY + 26);
+
+            const labelWidth = ctx.measureText('BOSSES').width + 16;
+            let bossX = padding + labelWidth;
+            run.meta.bossEncounters.forEach((bossId, idx) => {
+                const isKiller = bossId === run.meta?.killedBy;
+                const name = formatEncounterName(bossId);
+                ctx.font = '600 22px sans-serif';
+                const nameWidth = ctx.measureText(name).width;
+
+                if (idx > 0) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                    ctx.fillText(' → ', bossX, drawY + 26);
+                    bossX += ctx.measureText(' → ').width;
+                }
+
+                const icon = bossIcons[idx];
+                if (icon) {
+                    const iconY = drawY + (44 - bossIconSize) / 2;
+                    ctx.drawImage(icon, bossX, iconY, bossIconSize, bossIconSize);
+                    bossX += bossIconSize + bossIconGap;
+                }
+
+                ctx.fillStyle = isKiller ? '#e05252' : '#ebecf0';
+                ctx.fillText(name, bossX, drawY + 26);
+                bossX += nameWidth;
+            });
+            drawY += 44;
+        }
     }
 
     // Add gap before players

@@ -1,13 +1,14 @@
 import { idToNum, numToId, charToNum, numToChar } from './encoderDict';
+import { encounterToNum, numToEncounter } from './encounterDict';
 import { BitWriter, BitReader } from './bitstream';
 import { getCharacterName } from './characterMapper';
 import { decompressBytes, compressBytesBrotli, decompressBytesBrotli } from './compression';
 import { toBase81, fromBase81 } from './base81';
-import type { StatsSnapshot, StatsTableRow, StatsTopCard, StatsTopRelic } from './statsImageExport';
+import type { StatsSnapshot, StatsTableRow, StatsTopCard, StatsTopRelic, EncounterStat } from './statsImageExport';
 import type { CardData } from '../types';
 
 // ── Version ───────────────────────────────────────────────────────────────────
-const STATS_VERSION = 1;
+const STATS_VERSION = 2;
 const BITS_VERSION = 3;
 
 // ── Field widths ──────────────────────────────────────────────────────────────
@@ -22,6 +23,8 @@ const BITS_CARD_ID = 11; // matches deckEncoder
 const BITS_RELIC_ID = 11; // matches deckEncoder
 const BITS_COUNT_16 = 16; // V0 appearance / win counters
 const BITS_COUNT_12 = 12; // V1 appearance / win counters (max 4 095)
+const BITS_ENCOUNTER_ID = 7;    // 0–127; covers all 87 encounter IDs (1–87)
+const BITS_ENCOUNTER_COUNT = 12; // max 4 095 per encounter
 
 // ── Base64url decode helper (used for legacy URL backward compat) ────────────
 function fromBase64Url(s: string): Uint8Array {
@@ -166,6 +169,20 @@ function rRelic(r: BitReader, countBits: number): StatsTopRelic {
     return { id, appearances, wins };
 }
 
+function wEncounterStat(w: BitWriter, e: EncounterStat): void {
+    w.write(encounterToNum[e.id] ?? 0, BITS_ENCOUNTER_ID);
+    w.write(Math.min(4095, e.encounters), BITS_ENCOUNTER_COUNT);
+    w.write(Math.min(4095, e.beaten), BITS_ENCOUNTER_COUNT);
+    w.write(Math.min(4095, e.diedTo), BITS_ENCOUNTER_COUNT);
+}
+function rEncounterStat(r: BitReader): EncounterStat {
+    const id = numToEncounter[r.read(BITS_ENCOUNTER_ID)] ?? 'unknown';
+    const encounters = r.read(BITS_ENCOUNTER_COUNT);
+    const beaten = r.read(BITS_ENCOUNTER_COUNT);
+    const diedTo = r.read(BITS_ENCOUNTER_COUNT);
+    return { id, encounters, beaten, diedTo };
+}
+
 
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -225,6 +242,33 @@ export async function encodeStats(snapshot: StatsSnapshot): Promise<string> {
     const topAllRelics = snapshot.topAllRelics.slice(0, 10);
     w.write(topAllRelics.length, BITS_LIST_COUNT);
     for (const e of topAllRelics) wRelic(w, e);
+
+    // V2+: boss / elite encounter stats
+    const bossStats = (snapshot.bossStats ?? []).slice(0, 15);
+    w.write(bossStats.length, BITS_LIST_COUNT);
+    for (const e of bossStats) wEncounterStat(w, e);
+
+    const eliteStats = (snapshot.eliteStats ?? []).slice(0, 15);
+    w.write(eliteStats.length, BITS_LIST_COUNT);
+    for (const e of eliteStats) wEncounterStat(w, e);
+
+    const bossByCharStats = (snapshot.bossByCharStats ?? []).slice(0, 15);
+    w.write(bossByCharStats.length, BITS_LIST_COUNT);
+    for (const { charName, rows } of bossByCharStats) {
+        w.write(charNameToNum(charName), BITS_CHAR_ID);
+        const rr = rows.slice(0, 15);
+        w.write(rr.length, BITS_LIST_COUNT);
+        for (const e of rr) wEncounterStat(w, e);
+    }
+
+    const elitesByCharStats = (snapshot.elitesByCharStats ?? []).slice(0, 15);
+    w.write(elitesByCharStats.length, BITS_LIST_COUNT);
+    for (const { charName, rows } of elitesByCharStats) {
+        w.write(charNameToNum(charName), BITS_CHAR_ID);
+        const rr = rows.slice(0, 15);
+        w.write(rr.length, BITS_LIST_COUNT);
+        for (const e of rr) wEncounterStat(w, e);
+    }
 
     // Brotli-compress at quality 11, then encode with base81.
     // '~' prefix distinguishes this new format from legacy base64url strings.
@@ -304,6 +348,42 @@ export async function decodeStats(str: string): Promise<StatsSnapshot | null> {
         const topAllRelics: StatsTopRelic[] = [];
         for (let i = 0; i < numAllRelics; i++) topAllRelics.push(rRelic(r, countBits));
 
+        // V2+: boss / elite encounter stats
+        let bossStats: EncounterStat[] | undefined;
+        let eliteStats: EncounterStat[] | undefined;
+        let bossByCharStats: Array<{ charName: string; rows: EncounterStat[] }> | undefined;
+        let elitesByCharStats: Array<{ charName: string; rows: EncounterStat[] }> | undefined;
+
+        if (version >= 2) {
+            const numBoss = r.read(BITS_LIST_COUNT);
+            bossStats = [];
+            for (let i = 0; i < numBoss; i++) bossStats.push(rEncounterStat(r));
+
+            const numElite = r.read(BITS_LIST_COUNT);
+            eliteStats = [];
+            for (let i = 0; i < numElite; i++) eliteStats.push(rEncounterStat(r));
+
+            const numBossChar = r.read(BITS_LIST_COUNT);
+            bossByCharStats = [];
+            for (let i = 0; i < numBossChar; i++) {
+                const charName = numToCharName(r.read(BITS_CHAR_ID));
+                const numRows = r.read(BITS_LIST_COUNT);
+                const rows: EncounterStat[] = [];
+                for (let j = 0; j < numRows; j++) rows.push(rEncounterStat(r));
+                bossByCharStats.push({ charName, rows });
+            }
+
+            const numEliteChar = r.read(BITS_LIST_COUNT);
+            elitesByCharStats = [];
+            for (let i = 0; i < numEliteChar; i++) {
+                const charName = numToCharName(r.read(BITS_CHAR_ID));
+                const numRows = r.read(BITS_LIST_COUNT);
+                const rows: EncounterStat[] = [];
+                for (let j = 0; j < numRows; j++) rows.push(rEncounterStat(r));
+                elitesByCharStats.push({ charName, rows });
+            }
+        }
+
         return {
             totalRuns, wins, losses, abandoned,
             highestAscVictory, longestRunTime,
@@ -312,6 +392,7 @@ export async function decodeStats(str: string): Promise<StatsSnapshot | null> {
             charRows, ascRows,
             topWinCards, topAllCards, topCardsByChar,
             topWinRelics, topAllRelics,
+            bossStats, eliteStats, bossByCharStats, elitesByCharStats,
         };
     } catch (err) {
         console.error('Failed to decode stats snapshot', err);
