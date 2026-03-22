@@ -4,6 +4,7 @@ import { getCharacterName } from './characterMapper';
 import { decompressBytes, compressBytesBrotli, decompressBytesBrotli } from './compression';
 import { toBase81, fromBase81 } from './base81';
 import type { RunData, PlayerRunData, ImageExportMeta } from '../types';
+import { PATCH_LIST, CURRENT_PATCH_INDEX } from './patchUtils';
 
 // Width Configuration (Version 0)
 const V0_BITS_NUM_PLAYERS = 2;
@@ -13,7 +14,12 @@ const V0_BITS_CHARACTER = 3;
 const V1_BITS_NUM_PLAYERS = 3;
 const V1_BITS_CHARACTER = 4;
 
-const BITS_VERSION = 3;
+// v8+: 8-bit version field supports up to 255 encoder versions.
+// Strings using this width are prefixed with '~~' to distinguish them from
+// the legacy 3-bit v7 strings that used a single '~' prefix.
+const BITS_VERSION        = 8; // new format (~~)
+const BITS_VERSION_LEGACY = 3; // old brotli format (~), always version 7
+
 const BITS_ASCENSION = 5;
 const BITS_FLOOR = 6;
 const BITS_OUTCOME = 2; // 0=Victory, 1=Defeat, 2=Abandoned, 3=Unknown
@@ -33,10 +39,13 @@ const BITS_COUNT = 4;       // v0-v6: 4 bits (max 15 copies)
 const BITS_COUNT_V7 = 8;    // v7+:  8 bits (max 255 copies)
 
 // v4+: Mad Science variant props (only written/read when card id === 'mad_science')
-const BITS_TINKER_TIME_TYPE  = 2; // CardType: 1=Attack, 2=Skill, 3=Power (fits in 2 bits)
+const BITS_TINKER_TIME_TYPE = 2; // CardType: 1=Attack, 2=Skill, 3=Power (fits in 2 bits)
 const BITS_TINKER_TIME_RIDER = 4; // RiderEffect: 0-9 (fits in 4 bits)
 
-const CURRENT_VERSION = 7;
+// v8+: game patch index (0-127, maps to patchList.json)
+const BITS_PATCH_INDEX = 7; // supports up to 128 distinct game patches
+
+const CURRENT_VERSION = 8;
 
 export async function encodeRun(run: RunData): Promise<string | null> {
     try {
@@ -68,6 +77,10 @@ export async function encodeRun(run: RunData): Promise<string | null> {
         writer.write(outcomeNum, BITS_OUTCOME);
         writer.write(timeSeconds, BITS_TIME);
         writer.write(run.meta?.timestamp || 0, BITS_TIMESTAMP);
+
+        // v8+: game patch index (0-127)
+        const patchIndex = Math.min(127, run.meta?.patchIndex ?? CURRENT_PATCH_INDEX);
+        writer.write(patchIndex, BITS_PATCH_INDEX);
 
         // Normalize players vs legacy single run format
         let players: PlayerRunData[] = run.players || [];
@@ -134,9 +147,9 @@ export async function encodeRun(run: RunData): Promise<string | null> {
                         sapping: 1, violence: 2, choking: 3, energized: 4,
                         wisdom: 5, chaos: 6, expertise: 7, curious: 8, improvement: 9,
                     };
-                    const typeNum  = typeMap[(card.cardType ?? 'attack').toLowerCase()] ?? 1;
+                    const typeNum = typeMap[(card.cardType ?? 'attack').toLowerCase()] ?? 1;
                     const riderNum = riderMap[(card.tinkerTimeRider ?? '').toLowerCase()] ?? 0;
-                    writer.write(typeNum,  BITS_TINKER_TIME_TYPE);
+                    writer.write(typeNum, BITS_TINKER_TIME_TYPE);
                     writer.write(riderNum, BITS_TINKER_TIME_RIDER);
                 }
             }
@@ -144,9 +157,10 @@ export async function encodeRun(run: RunData): Promise<string | null> {
 
         const rawBytes = writer.getUint8Array();
         // Brotli-compress at quality 11, then encode with base81.
-        // '~' prefix distinguishes this new format from legacy base64url strings.
+        // '~~' prefix marks v8+ format (8-bit version field).
+        // Legacy v7 strings used a single '~' prefix (3-bit version field).
         const compressed = await compressBytesBrotli(rawBytes);
-        return '~' + toBase81(compressed);
+        return '~~' + toBase81(compressed);
 
     } catch (err) {
         console.error("Failed to bitpack run", err);
@@ -158,9 +172,14 @@ export async function encodeRun(run: RunData): Promise<string | null> {
 export async function decodeRun(base64UrlStr: string): Promise<RunData | null> {
     try {
         let buffer: Uint8Array;
-        if (base64UrlStr.startsWith('~')) {
-            // New format: '~' prefix + base81-encoded + brotli-compressed bitstream
+        let legacyFormat = false;
+        if (base64UrlStr.startsWith('~~')) {
+            // v8+: '~~' prefix + base81-encoded + brotli-compressed, 8-bit version field
+            buffer = await decompressBytesBrotli(fromBase81(base64UrlStr.slice(2)));
+        } else if (base64UrlStr.startsWith('~')) {
+            // v7 legacy: single '~' prefix + base81-encoded + brotli, 3-bit version field
             buffer = await decompressBytesBrotli(fromBase81(base64UrlStr.slice(1)));
+            legacyFormat = true;
         } else {
             const rawBuffer = base64UrlToArrayBuffer(base64UrlStr);
             if (rawBuffer.length > 0 && (rawBuffer[0] >> 5) === 6) {
@@ -170,10 +189,12 @@ export async function decodeRun(base64UrlStr: string): Promise<RunData | null> {
                 // Pre-v6: uncompressed raw bitstream
                 buffer = rawBuffer;
             }
+            legacyFormat = true;
         }
         const reader = new BitReader(buffer);
 
-        const version = reader.read(BITS_VERSION);
+        // Legacy strings (v0-v7) used a 3-bit version field; v8+ uses 8 bits.
+        const version = reader.read(legacyFormat ? BITS_VERSION_LEGACY : BITS_VERSION);
         if (version > CURRENT_VERSION) {
             console.warn("Attempting to parse an unsupported version bitpacked deck: " + version);
         }
@@ -196,12 +217,22 @@ export async function decodeRun(base64UrlStr: string): Promise<RunData | null> {
             timestamp = reader.read(BITS_TIMESTAMP);
         }
 
+        // v8+: patch index (7 bits, 0-127)
+        let patchIndex: number | undefined;
+        if (version >= 8) {
+            patchIndex = reader.read(BITS_PATCH_INDEX);
+        }
+
+        const buildId = patchIndex !== undefined ? (PATCH_LIST[patchIndex] ?? undefined) : undefined;
+
         let meta: ImageExportMeta = {
             ascension,
             floor,
             outcome,
             time,
-            timestamp
+            timestamp,
+            buildId,
+            patchIndex,
         };
 
         const numPlayersBits = (version === 0) ? V0_BITS_NUM_PLAYERS : V1_BITS_NUM_PLAYERS;
@@ -266,15 +297,15 @@ export async function decodeRun(base64UrlStr: string): Promise<RunData | null> {
                 let cardType: string | undefined;
                 let tinkerTimeRider: string | undefined;
                 if (id === 'mad_science' && version >= 4) {
-                    const typeNum  = reader.read(BITS_TINKER_TIME_TYPE);
+                    const typeNum = reader.read(BITS_TINKER_TIME_TYPE);
                     const riderNum = reader.read(BITS_TINKER_TIME_RIDER);
-                    const typeNames:  Record<number, string> = { 1: 'Attack', 2: 'Skill', 3: 'Power' };
+                    const typeNames: Record<number, string> = { 1: 'Attack', 2: 'Skill', 3: 'Power' };
                     const riderNames: Record<number, string> = {
                         1: 'sapping', 2: 'violence', 3: 'choking', 4: 'energized',
-                        5: 'wisdom',  6: 'chaos',    7: 'expertise', 8: 'curious', 9: 'improvement',
+                        5: 'wisdom', 6: 'chaos', 7: 'expertise', 8: 'curious', 9: 'improvement',
                     };
-                    cardType       = typeNames[typeNum]  ?? 'Attack';
-                    portraitId     = `mad_science_${cardType.toLowerCase()}`;
+                    cardType = typeNames[typeNum] ?? 'Attack';
+                    portraitId = `mad_science_${cardType.toLowerCase()}`;
                     tinkerTimeRider = riderNames[riderNum];
                 }
 

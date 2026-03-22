@@ -1,0 +1,16 @@
+{
+  "comment": "Patch-specific overrides for card values and localization text. Each key is a patchIndex (integer as string) corresponding to the entry in patchList.json. All fields are relative to the CURRENT patch baseline (cardValues.json / gameData.json). Only include fields that DIFFER from the current patch. Populate this file whenever old game files are available for extraction.",
+  "patchData": {
+    "1": {
+      "gameData": {
+        "cards": {
+          "burst.description": "This turn, your next{IfUpgraded:show: 2} {Skills:plural:Skill is|Skills are} played an extra time."
+        },
+        "relics": {
+          "massive_scroll.description": "Upon pickup, choose [blue]1[/blue] of [blue]3[/blue] [gold]Multiplayer Colorless Cards[/gold] to add to your [gold]Deck[/gold].",
+          "massive_scroll.eventdescription": "Choose [blue]1[/blue] of [blue]3[/blue] [gold]Multiplayer Colorless Cards[/gold] to add to your [gold]Deck[/gold]."
+        }
+      }
+    }
+  }
+}

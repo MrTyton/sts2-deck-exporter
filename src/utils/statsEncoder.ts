@@ -7,21 +7,21 @@ import type { StatsSnapshot, StatsTableRow, StatsTopCard, StatsTopRelic } from '
 import type { CardData } from '../types';
 
 // ── Version ───────────────────────────────────────────────────────────────────
-const STATS_VERSION   = 1;
-const BITS_VERSION    = 3;
+const STATS_VERSION = 1;
+const BITS_VERSION = 3;
 
 // ── Field widths ──────────────────────────────────────────────────────────────
-const BITS_RUN_COUNT  = 16; // up to 65 535 runs
-const BITS_ASC_LEVEL  = 5;  // 0–31
-const BITS_FLOOR      = 6;  // 0 = null sentinel; 1–63 = actual floor value
+const BITS_RUN_COUNT = 16; // up to 65 535 runs
+const BITS_ASC_LEVEL = 5;  // 0–31
+const BITS_FLOOR = 6;  // 0 = null sentinel; 1–63 = actual floor value
 const BITS_TIME_SHORT = 16; // up to 65 535 s (~18 h)  — avgTime, fastestWin
-const BITS_TIME_LONG  = 17; // up to 131 071 s (~36 h) — longestRunTime
-const BITS_CHAR_ID    = 4;  // 0–15 (6 known characters + unknown sentinel 15)
+const BITS_TIME_LONG = 17; // up to 131 071 s (~36 h) — longestRunTime
+const BITS_CHAR_ID = 4;  // 0–15 (6 known characters + unknown sentinel 15)
 const BITS_LIST_COUNT = 4;  // 0–15 items per list
-const BITS_CARD_ID    = 11; // matches deckEncoder
-const BITS_RELIC_ID   = 11; // matches deckEncoder
-const BITS_COUNT_16   = 16; // V0 appearance / win counters
-const BITS_COUNT_12   = 12; // V1 appearance / win counters (max 4 095)
+const BITS_CARD_ID = 11; // matches deckEncoder
+const BITS_RELIC_ID = 11; // matches deckEncoder
+const BITS_COUNT_16 = 16; // V0 appearance / win counters
+const BITS_COUNT_12 = 12; // V1 appearance / win counters (max 4 095)
 
 // ── Base64url decode helper (used for legacy URL backward compat) ────────────
 function fromBase64Url(s: string): Uint8Array {
@@ -104,38 +104,38 @@ function rNullable32(r: BitReader): number | null {
 // ── Breakdown row helpers ─────────────────────────────────────────────────────
 function wCharRow(w: BitWriter, row: StatsTableRow): void {
     w.write(charNameToNum(row.label), BITS_CHAR_ID);
-    w.write(Math.min(65535, row.runs),      BITS_RUN_COUNT);
-    w.write(Math.min(65535, row.wins),      BITS_RUN_COUNT);
-    w.write(Math.min(65535, row.losses),    BITS_RUN_COUNT);
+    w.write(Math.min(65535, row.runs), BITS_RUN_COUNT);
+    w.write(Math.min(65535, row.wins), BITS_RUN_COUNT);
+    w.write(Math.min(65535, row.losses), BITS_RUN_COUNT);
     w.write(Math.min(65535, row.abandoned), BITS_RUN_COUNT);
     wFloor(w, row.avgFloor);
 }
 function rCharRow(r: BitReader): StatsTableRow {
-    const label     = numToCharName(r.read(BITS_CHAR_ID));
-    const runs      = r.read(BITS_RUN_COUNT);
-    const wins      = r.read(BITS_RUN_COUNT);
-    const losses    = r.read(BITS_RUN_COUNT);
+    const label = numToCharName(r.read(BITS_CHAR_ID));
+    const runs = r.read(BITS_RUN_COUNT);
+    const wins = r.read(BITS_RUN_COUNT);
+    const losses = r.read(BITS_RUN_COUNT);
     const abandoned = r.read(BITS_RUN_COUNT);
-    const avgFloor  = rFloor(r);
+    const avgFloor = rFloor(r);
     return { label, runs, wins, losses, abandoned, avgFloor };
 }
 
 function wAscRow(w: BitWriter, row: StatsTableRow): void {
     const asc = parseInt(row.label.replace(/^A/, ''), 10) || 0;
     w.write(Math.min(31, asc), BITS_ASC_LEVEL);
-    w.write(Math.min(65535, row.runs),      BITS_RUN_COUNT);
-    w.write(Math.min(65535, row.wins),      BITS_RUN_COUNT);
-    w.write(Math.min(65535, row.losses),    BITS_RUN_COUNT);
+    w.write(Math.min(65535, row.runs), BITS_RUN_COUNT);
+    w.write(Math.min(65535, row.wins), BITS_RUN_COUNT);
+    w.write(Math.min(65535, row.losses), BITS_RUN_COUNT);
     w.write(Math.min(65535, row.abandoned), BITS_RUN_COUNT);
     wFloor(w, row.avgFloor);
 }
 function rAscRow(r: BitReader): StatsTableRow {
-    const asc       = r.read(BITS_ASC_LEVEL);
-    const runs      = r.read(BITS_RUN_COUNT);
-    const wins      = r.read(BITS_RUN_COUNT);
-    const losses    = r.read(BITS_RUN_COUNT);
+    const asc = r.read(BITS_ASC_LEVEL);
+    const runs = r.read(BITS_RUN_COUNT);
+    const wins = r.read(BITS_RUN_COUNT);
+    const losses = r.read(BITS_RUN_COUNT);
     const abandoned = r.read(BITS_RUN_COUNT);
-    const avgFloor  = rFloor(r);
+    const avgFloor = rFloor(r);
     return { label: `A${asc}`, runs, wins, losses, abandoned, avgFloor };
 }
 
@@ -143,12 +143,12 @@ function rAscRow(r: BitReader): StatsTableRow {
 function wCard(w: BitWriter, e: StatsTopCard): void {
     w.write(idToNum[e.id.toLowerCase()] ?? 0, BITS_CARD_ID);
     w.write(Math.min(4095, e.appearances), BITS_COUNT_12);
-    w.write(Math.min(4095, e.wins),        BITS_COUNT_12);
+    w.write(Math.min(4095, e.wins), BITS_COUNT_12);
 }
 function rCard(r: BitReader, countBits: number): StatsTopCard {
-    const id          = numToId[r.read(BITS_CARD_ID)] || 'unknown';
+    const id = numToId[r.read(BITS_CARD_ID)] || 'unknown';
     const appearances = r.read(countBits);
-    const wins        = r.read(countBits);
+    const wins = r.read(countBits);
     // Minimal CardData — enough for portrait rendering and tooltips
     const card: CardData = { id, count: 1, upgraded: false, upgrades: 0, enchantment: null };
     return { id, card, appearances, wins };
@@ -157,12 +157,12 @@ function rCard(r: BitReader, countBits: number): StatsTopCard {
 function wRelic(w: BitWriter, e: StatsTopRelic): void {
     w.write(idToNum[e.id.toLowerCase()] ?? 0, BITS_RELIC_ID);
     w.write(Math.min(4095, e.appearances), BITS_COUNT_12);
-    w.write(Math.min(4095, e.wins),        BITS_COUNT_12);
+    w.write(Math.min(4095, e.wins), BITS_COUNT_12);
 }
 function rRelic(r: BitReader, countBits: number): StatsTopRelic {
-    const id          = numToId[r.read(BITS_RELIC_ID)] || 'unknown';
+    const id = numToId[r.read(BITS_RELIC_ID)] || 'unknown';
     const appearances = r.read(countBits);
-    const wins        = r.read(countBits);
+    const wins = r.read(countBits);
     return { id, appearances, wins };
 }
 
@@ -176,19 +176,19 @@ export async function encodeStats(snapshot: StatsSnapshot): Promise<string> {
 
     // Summary counters
     w.write(Math.min(65535, snapshot.totalRuns), BITS_RUN_COUNT);
-    w.write(Math.min(65535, snapshot.wins),      BITS_RUN_COUNT);
-    w.write(Math.min(65535, snapshot.losses),    BITS_RUN_COUNT);
+    w.write(Math.min(65535, snapshot.wins), BITS_RUN_COUNT);
+    w.write(Math.min(65535, snapshot.losses), BITS_RUN_COUNT);
     w.write(Math.min(65535, snapshot.abandoned), BITS_RUN_COUNT);
 
     // Nullable scalars
     wNullableAsc(w, snapshot.highestAscVictory);
-    wNullable17(w,  snapshot.longestRunTime);
-    wFloor(w,       snapshot.avgFloor);
-    wFloor(w,       snapshot.avgWinFloor);
-    wFloor(w,       snapshot.avgDefeatFloor);
-    wNullable16(w,  snapshot.avgTime);
-    wNullable16(w,  snapshot.fastestWin);
-    wNullable32(w,  snapshot.totalTimeSeconds);
+    wNullable17(w, snapshot.longestRunTime);
+    wFloor(w, snapshot.avgFloor);
+    wFloor(w, snapshot.avgWinFloor);
+    wFloor(w, snapshot.avgDefeatFloor);
+    wNullable16(w, snapshot.avgTime);
+    wNullable16(w, snapshot.fastestWin);
+    wNullable32(w, snapshot.totalTimeSeconds);
 
     // Breakdown rows
     const charRows = snapshot.charRows.slice(0, 15);
@@ -253,19 +253,19 @@ export async function decodeStats(str: string): Promise<StatsSnapshot | null> {
 
         // Summary counters
         const totalRuns = r.read(BITS_RUN_COUNT);
-        const wins      = r.read(BITS_RUN_COUNT);
-        const losses    = r.read(BITS_RUN_COUNT);
+        const wins = r.read(BITS_RUN_COUNT);
+        const losses = r.read(BITS_RUN_COUNT);
         const abandoned = r.read(BITS_RUN_COUNT);
 
         // Nullable scalars
         const highestAscVictory = rNullableAsc(r);
-        const longestRunTime    = rNullable17(r);
-        const avgFloor          = rFloor(r);
-        const avgWinFloor       = rFloor(r);
-        const avgDefeatFloor    = rFloor(r);
-        const avgTime           = rNullable16(r);
-        const fastestWin        = rNullable16(r);
-        const totalTimeSeconds  = rNullable32(r);
+        const longestRunTime = rNullable17(r);
+        const avgFloor = rFloor(r);
+        const avgWinFloor = rFloor(r);
+        const avgDefeatFloor = rFloor(r);
+        const avgTime = rNullable16(r);
+        const fastestWin = rNullable16(r);
+        const totalTimeSeconds = rNullable32(r);
 
         // Breakdown rows
         const numCharRows = r.read(BITS_LIST_COUNT);

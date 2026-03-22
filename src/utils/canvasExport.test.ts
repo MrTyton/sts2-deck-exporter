@@ -106,6 +106,29 @@ describe('generateDeckImage', () => {
         expect(ctx.fillText).toHaveBeenCalledWith('10 cards', 60, 210);
     });
 
+    it('includes patch badge text when buildId is provided', async () => {
+        const cards = [{ id: 'strike', count: 1 }] as any;
+        const meta = { characterName: 'Test', ascension: 1, outcome: 'Victory', floor: 50, relics: [], buildId: 'v0.99.1' };
+
+        const canvas = await generateDeckImage({ cards, meta });
+        const ctx: any = canvas.getContext('2d');
+
+        // Badge text is split into parts for bold rendering; "Patch v" is the non-digit prefix
+        const calls = ctx.fillText.mock.calls.map((call: any[]) => call[0] as string);
+        expect(calls.some(t => t === 'Patch v')).toBe(true);
+    });
+
+    it('does not include patch badge text when buildId is absent', async () => {
+        const cards = [{ id: 'strike', count: 1 }] as any;
+        const meta = { characterName: 'Test', ascension: 1, outcome: 'Victory', floor: 50, relics: [] };
+
+        const canvas = await generateDeckImage({ cards, meta });
+        const ctx: any = canvas.getContext('2d');
+
+        const calls = ctx.fillText.mock.calls.map((call: any[]) => call[0] as string);
+        expect(calls.some(t => typeof t === 'string' && t.startsWith('Patch'))).toBe(false);
+    });
+
     it('wraps multiplayer character names if they are too long', async () => {
         const cards = [{ id: 'strike', count: 1 }] as any;
         const meta = {

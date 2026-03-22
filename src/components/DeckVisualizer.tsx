@@ -21,18 +21,18 @@ export function DeckVisualizer({ run }: DeckVisualizerProps) {
     const [tooltipVisible, setTooltipVisible] = useState(false);
 
     const showCardTooltip = useCallback((e: React.MouseEvent, card: CardData) => {
-        const content = getCardTooltip(card.id, card.upgraded, card.upgrades, card.enchantment, card.enchantmentAmount, card.cardType, card.tinkerTimeRider);
+        const content = getCardTooltip(card.id, card.upgraded, card.upgrades, card.enchantment, card.enchantmentAmount, card.cardType, card.tinkerTimeRider, run.meta?.patchIndex);
         setTooltipContent(content);
         setTooltipPos({ x: e.clientX, y: e.clientY });
         setTooltipVisible(true);
-    }, []);
+    }, [run.meta?.patchIndex]);
 
     const showRelicTooltip = useCallback((e: React.MouseEvent, relicId: string) => {
-        const content = getRelicTooltip(relicId);
+        const content = getRelicTooltip(relicId, run.meta?.patchIndex);
         setTooltipContent(content);
         setTooltipPos({ x: e.clientX, y: e.clientY });
         setTooltipVisible(true);
-    }, []);
+    }, [run.meta?.patchIndex]);
 
     const updateTooltipPos = useCallback((e: React.MouseEvent) => {
         setTooltipPos({ x: e.clientX, y: e.clientY });
@@ -116,6 +116,11 @@ export function DeckVisualizer({ run }: DeckVisualizerProps) {
                             {run.meta.time && (
                                 <span style={{ background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
                                     Time: <strong>{run.meta.time}</strong>
+                                </span>
+                            )}
+                            {run.meta.buildId && (
+                                <span style={{ background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                    Patch <strong>{run.meta.buildId}</strong>
                                 </span>
                             )}
                         </div>

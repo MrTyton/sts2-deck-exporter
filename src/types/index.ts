@@ -45,6 +45,10 @@ export interface ImageExportMeta {
     time?: string;
     timestamp?: number;
     relics?: string[]; // Legacy/single player support
+    /** Game build/patch version string (e.g. "v0.99.1") from the run file's build_id field. */
+    buildId?: string;
+    /** Index into patchList.json (0-based). Used to look up patch-specific card values and text. */
+    patchIndex?: number;
 }
 
 export interface RunData {

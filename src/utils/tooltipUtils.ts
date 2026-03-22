@@ -20,6 +20,7 @@
 
 import rawGameData from '../data/gameData.json';
 import rawCardValues from '../data/cardValues.json';
+import { getCardValueDelta, getTextOverride } from './patchUtils';
 
 // ── Type declarations ────────────────────────────────────────────────────────
 
@@ -85,8 +86,16 @@ function locCard(id: string, field: string): string {
   return gameData.cards[`${id}.${field}`] ?? '';
 }
 
+function locCardForPatch(id: string, field: string, patchIndex: number | undefined): string {
+  return getTextOverride('cards', `${id}.${field}`, patchIndex) ?? locCard(id, field);
+}
+
 function locRelic(id: string, field: string): string {
   return gameData.relics[`${id}.${field}`] ?? '';
+}
+
+function locRelicForPatch(id: string, field: string, patchIndex: number | undefined): string {
+  return getTextOverride('relics', `${id}.${field}`, patchIndex) ?? locRelic(id, field);
 }
 
 function locEnchantment(id: string, field: string): string {
@@ -531,11 +540,24 @@ export function getCardTooltip(
   enchantmentId: string | null,
   enchantmentAmount?: number,
   cardTypeOverride?: string,   // e.g. 'Attack' | 'Skill' | 'Power' for Mad Science
-  tinkerTimeRider?: string     // lowercase rider name, e.g. 'choking', 'wisdom'
+  tinkerTimeRider?: string,    // lowercase rider name, e.g. 'choking', 'wisdom'
+  patchIndex?: number          // from meta.patchIndex; undefined = current patch
 ): TooltipContent {
   const locId = id;  // already lowercase; keys in gameData are lowercase
   const valKey = id.toUpperCase();
-  const vals = cardValues[valKey];
+  const baseVals = cardValues[valKey];
+
+  // Apply patch-specific card value overrides (e.g. old energy cost, different damage)
+  const cvDelta = getCardValueDelta(valKey, patchIndex);
+  const vals: typeof baseVals = cvDelta && baseVals
+    ? {
+        ...baseVals,
+        ...(cvDelta.energyCost !== undefined ? { energyCost: cvDelta.energyCost as typeof baseVals.energyCost } : {}),
+        vars: { ...baseVals.vars, ...(cvDelta.vars as typeof baseVals.vars ?? {}) },
+        upgrades: { ...baseVals.upgrades, ...(cvDelta.upgrades as typeof baseVals.upgrades ?? {}) },
+        stringVars: { ...baseVals.stringVars, ...(cvDelta.stringVars as typeof baseVals.stringVars ?? {}) },
+      }
+    : baseVals;
 
   // If the card has a runtime-chosen type (e.g. Mad Science), override the static cardType
   // so that {CardType:choose(...)} resolves to the correct branch.
@@ -543,8 +565,8 @@ export function getCardTooltip(
     ? { ...vals, cardType: cardTypeOverride }
     : vals;
 
-  const title = locCard(locId, 'title') || formatFallbackName(id);
-  const rawDesc = locCard(locId, 'description');
+  const title = locCardForPatch(locId, 'title', patchIndex) || formatFallbackName(id);
+  const rawDesc = locCardForPatch(locId, 'description', patchIndex);
   const description = rawDesc
     ? parseDescription(rawDesc, effectiveVals, isUpgraded, upgradeLevel, tinkerTimeRider)
     : keywordsToDescription(effectiveVals?.keywords ?? []);
@@ -602,14 +624,24 @@ export function getCardTooltip(
   return content;
 }
 
-export function getRelicTooltip(id: string): TooltipContent {
+export function getRelicTooltip(id: string, patchIndex?: number): TooltipContent {
   const locId = id;  // lowercase
   const valKey = id.toUpperCase();
-  const vals = cardValues[valKey];
+  const baseVals = cardValues[valKey];
 
-  const title = locRelic(locId, 'title') || formatFallbackName(id);
-  const rawDesc = locRelic(locId, 'description');
-  const rawFlavor = locRelic(locId, 'flavor');
+  // Apply patch-specific relic value overrides
+  const cvDelta = getCardValueDelta(valKey, patchIndex);
+  const vals: typeof baseVals = cvDelta && baseVals
+    ? {
+        ...baseVals,
+        vars: { ...baseVals.vars, ...(cvDelta.vars as typeof baseVals.vars ?? {}) },
+        upgrades: { ...baseVals.upgrades, ...(cvDelta.upgrades as typeof baseVals.upgrades ?? {}) },
+      }
+    : baseVals;
+
+  const title = locRelicForPatch(locId, 'title', patchIndex) || formatFallbackName(id);
+  const rawDesc = locRelicForPatch(locId, 'description', patchIndex);
+  const rawFlavor = locRelicForPatch(locId, 'flavor', patchIndex);
 
   const description = parseDescription(rawDesc, vals, false, 0);
   // Skip the early-access placeholder flavor text

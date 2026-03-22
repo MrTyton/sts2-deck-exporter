@@ -101,6 +101,18 @@ describe('DeckVisualizer', () => {
         expect(window.location.assign).toHaveBeenCalledWith(window.location.pathname);
     });
 
+    it('renders patch badge when buildId is present in meta', () => {
+        const metaWithPatch = { ...mockMeta, buildId: 'v0.99.1' };
+        render(<DeckVisualizer run={{ cards: mockCards, meta: metaWithPatch }} />);
+        expect(screen.getByText('v0.99.1')).toBeInTheDocument();
+        expect(screen.getByText(/Patch/)).toBeInTheDocument();
+    });
+
+    it('does not render patch badge when buildId is absent', () => {
+        render(<DeckVisualizer run={{ cards: mockCards, meta: mockMeta }} />);
+        expect(screen.queryByText(/Patch/)).toBeNull();
+    });
+
     it('renders multiplayer run correctly (stacked layers)', () => {
         render(<DeckVisualizer run={mockMultiplayerRun} />);
 

@@ -45,7 +45,7 @@ export async function compressBytes(data: Uint8Array): Promise<Uint8Array> {
     writer.close();
     const chunks: Uint8Array[] = [];
     const reader = cs.readable.getReader();
-    for (;;) {
+    for (; ;) {
         const { done, value } = await reader.read();
         if (done) break;
         chunks.push(value);
@@ -63,11 +63,11 @@ export async function decompressBytes(data: Uint8Array): Promise<Uint8Array> {
     const ab = new ArrayBuffer(data.byteLength);
     new Uint8Array(ab).set(data);
     // Suppress write-side rejections; errors surface through reader.read() below.
-    writer.write(new Uint8Array(ab)).catch(() => {});
-    writer.close().catch(() => {});
+    writer.write(new Uint8Array(ab)).catch(() => { });
+    writer.close().catch(() => { });
     const chunks: Uint8Array[] = [];
     const reader = ds.readable.getReader();
-    for (;;) {
+    for (; ;) {
         const { done, value } = await reader.read();
         if (done) break;
         chunks.push(value);

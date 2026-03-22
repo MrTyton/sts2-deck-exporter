@@ -188,6 +188,9 @@ export async function generateDeckImage(run: RunData): Promise<HTMLCanvasElement
         if (run.meta.time) {
             badges.push(`Time: ${run.meta.time}`);
         }
+        if (run.meta.buildId) {
+            badges.push(`Patch ${run.meta.buildId}`);
+        }
 
         ctx.font = '28px sans-serif';
         const badgePaddingX = 20;

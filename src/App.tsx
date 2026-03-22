@@ -10,6 +10,7 @@ import { encodeRun, decodeRun } from './utils/deckEncoder'
 import { decodeStats } from './utils/statsEncoder'
 import type { StatsSnapshot } from './utils/statsImageExport'
 import { getSavedRunUIDs, saveRunUID, clearSavedRuns, getLocalNetId, saveLocalNetId } from './utils/storage'
+import { buildIdToPatchIndex } from './utils/patchUtils'
 
 function App() {
     const [isInfoOpen, setIsInfoOpen] = useState(false)
@@ -34,132 +35,132 @@ function App() {
     // On mount, check if there's a deck compressed in the URL hash AND load saved runs
     useEffect(() => {
         (async () => {
-        const hash = window.location.hash
-        let initialRuns: RunData[] = [];
+            const hash = window.location.hash
+            let initialRuns: RunData[] = [];
 
-        // 1. Load from storage first
-        const savedUIDs = getSavedRunUIDs();
-        for (const uid of savedUIDs) {
-            try {
-                const decoded = await decodeRun(uid);
-                if (decoded) initialRuns.push(decoded);
-            } catch (err) {
-                console.error("Failed to decode saved run:", err);
-            }
-        }
-
-        // 2. Check hash
-        if (hash) {
-            if (hash.startsWith('#d=')) {
-                // New bitpacked format
+            // 1. Load from storage first
+            const savedUIDs = getSavedRunUIDs();
+            for (const uid of savedUIDs) {
                 try {
-                    const bitpacked = hash.substring(3);
-                    const decoded = await decodeRun(bitpacked);
-                    if (decoded) {
-                        // Check if already in initialRuns to avoid dupes
-                        const alreadyStored = savedUIDs.includes(bitpacked);
-                        if (!alreadyStored) {
-                            initialRuns.push(decoded);
-                        }
-                        setRuns(initialRuns);
-                        fromHashRef.current = true;
-                        setSelectedRunId(initialRuns.indexOf(decoded));
-                        setIsSharedView(true);
-                        return;
-                    }
+                    const decoded = await decodeRun(uid);
+                    if (decoded) initialRuns.push(decoded);
                 } catch (err) {
-                    console.error("Failed to decode bitpacked run from hash:", err);
+                    console.error("Failed to decode saved run:", err);
                 }
-            } else if (hash.startsWith('#s=')) {
-                // Stats snapshot shared link
-                decodeStats(hash.substring(3)).then(decoded => {
-                    if (decoded) {
-                        setSharedStats(decoded);
-                        setGalleryTab('stats');
-                    }
-                }).catch(err => console.error('Failed to decode stats snapshot from hash:', err));
-                if (initialRuns.length > 0) setRuns(initialRuns);
-                return;
-            } else if (hash.startsWith('#deck=')) {
-                // Legacy lz-string format
-                import('lz-string').then(lzString => {
-                    try {
-                        const compressed = hash.substring(6)
-                        const decompressed = lzString.decompressFromEncodedURIComponent(compressed)
-                        if (decompressed) {
-                            const parsed = JSON.parse(decompressed)
-                            let legacyRun: RunData;
-                            // Backwards compatibility if it's just an array
-                            if (Array.isArray(parsed)) {
-                                legacyRun = {
-                                    cards: parseDeckArray(parsed),
-                                    meta: undefined
-                                };
-                            } else if (parsed.players) {
-                                const fullPlayers = parsed.players.map((p: any) => ({
-                                    ...p,
-                                    cards: parseDeckArray(p.cards)
-                                }));
-                                legacyRun = {
-                                    players: fullPlayers,
-                                    meta: parsed.meta
-                                };
-                            } else {
-                                legacyRun = {
-                                    cards: parseDeckArray(parsed.deck),
-                                    meta: parsed.meta
-                                };
-                            }
+            }
 
-                            setRuns([...initialRuns, legacyRun]);
+            // 2. Check hash
+            if (hash) {
+                if (hash.startsWith('#d=')) {
+                    // New bitpacked format
+                    try {
+                        const bitpacked = hash.substring(3);
+                        const decoded = await decodeRun(bitpacked);
+                        if (decoded) {
+                            // Check if already in initialRuns to avoid dupes
+                            const alreadyStored = savedUIDs.includes(bitpacked);
+                            if (!alreadyStored) {
+                                initialRuns.push(decoded);
+                            }
+                            setRuns(initialRuns);
                             fromHashRef.current = true;
-                            setSelectedRunId(initialRuns.length); // view it directly
+                            setSelectedRunId(initialRuns.indexOf(decoded));
                             setIsSharedView(true);
+                            return;
                         }
                     } catch (err) {
-                        console.error("Failed to decode run data from legacy URL:", err)
+                        console.error("Failed to decode bitpacked run from hash:", err);
                     }
-                }).catch(err => console.error("Failed to load lz-string:", err))
-                return;
-            }
-        }
+                } else if (hash.startsWith('#s=')) {
+                    // Stats snapshot shared link
+                    decodeStats(hash.substring(3)).then(decoded => {
+                        if (decoded) {
+                            setSharedStats(decoded);
+                            setGalleryTab('stats');
+                        }
+                    }).catch(err => console.error('Failed to decode stats snapshot from hash:', err));
+                    if (initialRuns.length > 0) setRuns(initialRuns);
+                    return;
+                } else if (hash.startsWith('#deck=')) {
+                    // Legacy lz-string format
+                    import('lz-string').then(lzString => {
+                        try {
+                            const compressed = hash.substring(6)
+                            const decompressed = lzString.decompressFromEncodedURIComponent(compressed)
+                            if (decompressed) {
+                                const parsed = JSON.parse(decompressed)
+                                let legacyRun: RunData;
+                                // Backwards compatibility if it's just an array
+                                if (Array.isArray(parsed)) {
+                                    legacyRun = {
+                                        cards: parseDeckArray(parsed),
+                                        meta: undefined
+                                    };
+                                } else if (parsed.players) {
+                                    const fullPlayers = parsed.players.map((p: any) => ({
+                                        ...p,
+                                        cards: parseDeckArray(p.cards)
+                                    }));
+                                    legacyRun = {
+                                        players: fullPlayers,
+                                        meta: parsed.meta
+                                    };
+                                } else {
+                                    legacyRun = {
+                                        cards: parseDeckArray(parsed.deck),
+                                        meta: parsed.meta
+                                    };
+                                }
 
-        if (initialRuns.length > 0) {
-            setRuns(initialRuns);
-        }
+                                setRuns([...initialRuns, legacyRun]);
+                                fromHashRef.current = true;
+                                setSelectedRunId(initialRuns.length); // view it directly
+                                setIsSharedView(true);
+                            }
+                        } catch (err) {
+                            console.error("Failed to decode run data from legacy URL:", err)
+                        }
+                    }).catch(err => console.error("Failed to load lz-string:", err))
+                    return;
+                }
+            }
+
+            if (initialRuns.length > 0) {
+                setRuns(initialRuns);
+            }
         })();
     }, [])
 
     // Update share URL whenever a specific run is selected
     useEffect(() => {
         (async () => {
-        if (selectedRunId !== null && runs[selectedRunId]) {
-            const run = runs[selectedRunId];
-            try {
-                const bitpacked = await encodeRun(run);
-                if (bitpacked) {
-                    const newHash = `#d=${bitpacked}`;
-                    if (fromHashRef.current) {
-                        // Initial load from URL – the hash is already in the address bar, don't push a duplicate entry
-                        fromHashRef.current = false;
-                        window.history.replaceState(null, '', newHash);
-                    } else if (selectedRunId !== prevSelectedRunIdRef.current) {
-                        // User navigated to a new run – push so the browser back button returns to the gallery
-                        window.history.pushState(null, '', newHash);
-                    } else {
-                        // Same run selected but runs array changed (e.g. more files uploaded) – just keep URL in sync
-                        window.history.replaceState(null, '', newHash);
+            if (selectedRunId !== null && runs[selectedRunId]) {
+                const run = runs[selectedRunId];
+                try {
+                    const bitpacked = await encodeRun(run);
+                    if (bitpacked) {
+                        const newHash = `#d=${bitpacked}`;
+                        if (fromHashRef.current) {
+                            // Initial load from URL – the hash is already in the address bar, don't push a duplicate entry
+                            fromHashRef.current = false;
+                            window.history.replaceState(null, '', newHash);
+                        } else if (selectedRunId !== prevSelectedRunIdRef.current) {
+                            // User navigated to a new run – push so the browser back button returns to the gallery
+                            window.history.pushState(null, '', newHash);
+                        } else {
+                            // Same run selected but runs array changed (e.g. more files uploaded) – just keep URL in sync
+                            window.history.replaceState(null, '', newHash);
+                        }
+                        prevSelectedRunIdRef.current = selectedRunId;
                     }
-                    prevSelectedRunIdRef.current = selectedRunId;
+                } catch (err) {
+                    console.warn("Could not generate share URL", err);
                 }
-            } catch (err) {
-                console.warn("Could not generate share URL", err);
+            } else {
+                prevSelectedRunIdRef.current = null;
+                // clear hash if back in gallery
+                window.history.replaceState(null, '', ' ');
             }
-        } else {
-            prevSelectedRunIdRef.current = null;
-            // clear hash if back in gallery
-            window.history.replaceState(null, '', ' ');
-        }
         })();
     }, [selectedRunId, runs])
 
@@ -249,8 +250,8 @@ function App() {
                 const netId = player.id != null ? String(player.id) : undefined;
                 const isLocalPlayer: boolean | undefined =
                     isSoloRun ? true
-                    : (localNetId !== undefined && netId === localNetId) ? true
-                    : undefined;
+                        : (localNetId !== undefined && netId === localNetId) ? true
+                            : undefined;
 
                 return {
                     characterName: characterName || "Unknown Character",
@@ -263,13 +264,16 @@ function App() {
 
             const combinedNames = playersData.map(p => p.characterName).join(' & ');
 
+            const buildId = rawJson.build_id as string | undefined;
             const metadata = {
                 floor: runLengthStr,
                 ascension: ascension,
                 outcome: outcome,
                 characterName: combinedNames,
                 time: timeStr,
-                timestamp: timestamp
+                timestamp: timestamp,
+                buildId,
+                patchIndex: buildIdToPatchIndex(buildId)
             };
 
             const run: RunData = {
@@ -366,12 +370,12 @@ function App() {
                                 Viewing shared run stats. Upload your own <code>.run</code> files to see your stats here.
                             </span>
                             <button className="btn-secondary" onClick={() => {
-                                    setSharedStats(null);
-                                    window.history.replaceState(null, '', ' ');
-                                    if (getSavedRunUIDs().length > 0) {
-                                        setGalleryTab('stats');
-                                    }
-                                }}>
+                                setSharedStats(null);
+                                window.history.replaceState(null, '', ' ');
+                                if (getSavedRunUIDs().length > 0) {
+                                    setGalleryTab('stats');
+                                }
+                            }}>
                                 Load Your Own Runs
                             </button>
                         </div>
