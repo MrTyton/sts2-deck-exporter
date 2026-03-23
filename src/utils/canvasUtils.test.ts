@@ -41,8 +41,6 @@ describe('loadCachedImage', () => {
     });
 
     it('returns the cached result on a second call for the same URL (no new Image created)', async () => {
-        const ImageSpy = makeImageStub();
-        const constructorSpy = vi.fn().mockImplementation((...args) => new ImageSpy(...args));
         // We can't easily spy on Image construction; instead verify only 1 onload fires
         vi.stubGlobal('Image', makeImageStub());
 
