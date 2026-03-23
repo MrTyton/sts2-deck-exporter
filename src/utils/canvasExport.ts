@@ -1,37 +1,14 @@
 import type { RunData } from '../types';
 import { formatCardName, getCardPortraitId } from './cardUtils';
 import { formatEncounterName } from './encounterDict';
-
-const imageCache = new Map<string, HTMLImageElement | null>();
-
-function loadImage(src: string): Promise<HTMLImageElement | null> {
-    if (imageCache.has(src)) {
-        return Promise.resolve(imageCache.get(src) || null);
-    }
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-            imageCache.set(src, img);
-            resolve(img);
-        };
-        img.onerror = () => {
-            imageCache.set(src, null);
-            resolve(null);
-        };
-        img.src = src;
-    });
-}
+import { loadCachedImage } from './canvasUtils';
+import { getPlayersToRender } from './deckParser';
 
 export async function generateDeckImage(run: RunData): Promise<HTMLCanvasElement> {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 
-    const playersToRender = run.players || [{
-        characterName: run.meta?.characterName || 'Your Run Deck',
-        cards: run.cards || [],
-        relics: run.meta?.relics || []
-    }];
+    const playersToRender = getPlayersToRender(run);
 
     // Pre-sort cards for all players
     playersToRender.forEach(p => {
@@ -295,7 +272,7 @@ export async function generateDeckImage(run: RunData): Promise<HTMLCanvasElement
             const bossIconGap = 8;
             const bossIcons = await Promise.all(
                 run.meta.bossEncounters.map(id =>
-                    loadImage(`${import.meta.env.BASE_URL}assets/bosses/${id}.webp`)
+                    loadCachedImage(`${import.meta.env.BASE_URL}assets/bosses/${id}.webp`)
                 )
             );
 
@@ -383,7 +360,7 @@ export async function generateDeckImage(run: RunData): Promise<HTMLCanvasElement
                     drawY += relicSize + relicGap;
                 }
                 try {
-                    const img = await loadImage(`${import.meta.env.BASE_URL}assets/relics/${relic}.webp`);
+                    const img = await loadCachedImage(`${import.meta.env.BASE_URL}assets/relics/${relic}.webp`);
                     if (img) {
                         ctx.drawImage(img, relicX, drawY, relicSize, relicSize);
                     }
@@ -398,7 +375,7 @@ export async function generateDeckImage(run: RunData): Promise<HTMLCanvasElement
         const gridStartX = padding + Math.floor((availableWidth - gridContentWidth) / 2);
 
         let cardPromises = p.cards.map((card, index) => {
-            return loadImage(`${import.meta.env.BASE_URL}assets/portraits/${getCardPortraitId(card)}.webp`).then(img => ({ card, img, index }));
+            return loadCachedImage(`${import.meta.env.BASE_URL}assets/portraits/${getCardPortraitId(card)}.webp`).then(img => ({ card, img, index }));
         });
         const cardResults = await Promise.all(cardPromises);
 

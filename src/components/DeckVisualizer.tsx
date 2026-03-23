@@ -6,6 +6,7 @@ import { getCardTooltip, getRelicTooltip } from '../utils/tooltipUtils';
 import { formatEncounterName } from '../utils/encounterDict';
 import type { TooltipContent } from '../utils/tooltipUtils';
 import type { CardData, RunData } from '../types';
+import { getPlayersToRender } from '../utils/deckParser';
 
 export interface DeckVisualizerProps {
     run: RunData;
@@ -86,11 +87,7 @@ export function DeckVisualizer({ run }: DeckVisualizerProps) {
         }
     };
 
-    const playersToRender = run.players || [{
-        characterName: run.meta?.characterName || 'Your Run Deck',
-        cards: run.cards || [],
-        relics: run.meta?.relics || []
-    }];
+    const playersToRender = getPlayersToRender(run);
 
     return (
         <>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseDeckArray } from './deckParser';
+import { parseDeckArray, getPlayersToRender } from './deckParser';
 
 describe('parseDeckArray', () => {
     it('should correctly group identical base cards', () => {
@@ -163,5 +163,50 @@ describe('parseDeckArray – Mad Science variants', () => {
         const result = parseDeckArray([card, card]);
         expect(result).toHaveLength(1);
         expect(result[0].count).toBe(2);
+    });
+});
+
+describe('getPlayersToRender', () => {
+    it('returns run.players unchanged when present', () => {
+        const players = [
+            { characterName: 'The Ironclad', cards: [], relics: [] },
+            { characterName: 'The Silent',   cards: [], relics: [] },
+        ];
+        const result = getPlayersToRender({ players });
+        expect(result).toBe(players);
+        expect(result).toHaveLength(2);
+    });
+
+    it('wraps a legacy flat run into a single-element array', () => {
+        const cards = [{ id: 'strike_ironclad', count: 5, upgraded: false, upgrades: 0, enchantment: null }];
+        const meta  = { characterName: 'The Ironclad', relics: ['burning_blood'] };
+        const result = getPlayersToRender({ cards, meta });
+
+        expect(result).toHaveLength(1);
+        expect(result[0].characterName).toBe('The Ironclad');
+        expect(result[0].cards).toBe(cards);
+        expect(result[0].relics).toEqual(['burning_blood']);
+    });
+
+    it('uses "Your Run Deck" as the fallback name when meta is absent', () => {
+        const result = getPlayersToRender({});
+        expect(result).toHaveLength(1);
+        expect(result[0].characterName).toBe('Your Run Deck');
+    });
+
+    it('uses "Your Run Deck" when meta has no characterName', () => {
+        const result = getPlayersToRender({ meta: {} });
+        expect(result).toHaveLength(1);
+        expect(result[0].characterName).toBe('Your Run Deck');
+    });
+
+    it('produces an empty cards array when run has no cards and no players', () => {
+        const result = getPlayersToRender({});
+        expect(result[0].cards).toEqual([]);
+    });
+
+    it('produces an empty relics array when meta has no relics', () => {
+        const result = getPlayersToRender({ meta: { characterName: 'Test' } });
+        expect(result[0].relics).toEqual([]);
     });
 });

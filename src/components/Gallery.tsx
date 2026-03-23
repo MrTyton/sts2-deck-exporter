@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import { getCardPortraitId } from '../utils/cardUtils';
 import type { CardData, ImageExportMeta, PlayerRunData } from '../types';
+import { STARTER_CARD_IDS } from '../utils/gameConstants';
 
 export interface RunData {
     meta?: ImageExportMeta;
@@ -198,20 +199,15 @@ export function Gallery({ runs, onSelectRun, filters = {}, onFilterChange }: Gal
                 <div className="gallery-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
                     {processedRuns.map(({ run, index }) => {
                         // Determine background images from the first 3 non-starter cards in the deck
-                        const starterIds = [
-                            'strike', 'defend', 'strike_ironclad', 'defend_ironclad',
-                            'strike_silent', 'defend_silent', 'strike_defect', 'defend_defect',
-                            'strike_necrobinder', 'defend_necrobinder', 'strike_regent', 'defend_regent'
-                        ];
                         let bgCards: CardData[] = [];
                         if (run.players) {
                             bgCards = run.players.map(p => {
-                                let c = p.cards.filter(c => !starterIds.includes(c.id)).slice(0, 1);
+                                let c = p.cards.filter(c => !STARTER_CARD_IDS.has(c.id)).slice(0, 1);
                                 if (c.length === 0 && p.cards.length > 0) c = p.cards.slice(0, 1);
                                 return c[0];
                             }).filter(Boolean);
                         } else if (run.cards && run.cards.length > 0) {
-                            bgCards = run.cards.filter(c => !starterIds.includes(c.id)).slice(0, 1);
+                            bgCards = run.cards.filter(c => !STARTER_CARD_IDS.has(c.id)).slice(0, 1);
                             if (bgCards.length === 0) bgCards = run.cards.slice(0, 1); // Fallback
                         }
 

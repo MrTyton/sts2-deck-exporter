@@ -8,56 +8,16 @@ import { Tooltip } from './Tooltip';
 import { getCardTooltip, getRelicTooltip } from '../utils/tooltipUtils';
 import type { TooltipContent } from '../utils/tooltipUtils';
 import type { RunData, CardData } from '../types';
+import { charIconUrl } from '../utils/characterMapper';
+import { pct, formatSeconds, formatTotalTime } from '../utils/formatUtils';
+import { STARTER_CARD_IDS, STARTER_RELIC_IDS } from '../utils/gameConstants';
 
 interface StatsPageProps {
     runs: RunData[];
     sharedStats?: StatsSnapshot;
 }
 
-// ── Starter card IDs to exclude from "most common" lists ─────────────────────
-// Sourced from each character's StartingDeck definition in the decompiled game.
-const STARTER_CARD_IDS = new Set([
-    // Generic fallbacks
-    'strike', 'defend',
-    // Ironclad: 5× strike, 4× defend, 1× bash
-    'strike_ironclad', 'defend_ironclad', 'bash',
-    // Silent: 5× strike, 5× defend, 1× neutralize, 1× survivor
-    'strike_silent', 'defend_silent', 'neutralize', 'survivor',
-    // Defect: 4× strike, 4× defend, 1× zap, 1× dualcast
-    'strike_defect', 'defend_defect', 'zap', 'dualcast',
-    // Necrobinder: 4× strike, 4× defend, 1× bodyguard, 1× unleash
-    'strike_necrobinder', 'defend_necrobinder', 'bodyguard', 'unleash',
-    // Regent: 4× strike, 4× defend, 1× falling_star, 1× venerate
-    'strike_regent', 'defend_regent', 'falling_star', 'venerate',
-]);
-
-// ── Starter relic IDs to exclude from relic counts ───────────────────────────
-// Sourced from each character's StartingRelics definition in the decompiled game.
-const STARTER_RELIC_IDS = new Set([
-    'burning_blood',      // Ironclad
-    'ring_of_the_snake',  // Silent
-    'cracked_core',       // Defect
-    'bound_phylactery',   // Necrobinder
-    'divine_right',       // Regent
-]);
-
-// ── Character icon mapping ─────────────────────────────────────────────────────
-// Maps display character names to their char_select sprite filenames.
-const CHARACTER_ICONS: Record<string, string> = {
-    'The Ironclad':   'char_select_ironclad.webp',
-    'The Silent':     'char_select_silent.webp',
-    'The Defect':     'char_select_defect.webp',
-    'The Necrobinder':'char_select_necrobinder.webp',
-    'The Regent':     'char_select_regent.webp',
-};
-
-function charIconUrl(name: string): string | null {
-    const file = CHARACTER_ICONS[name];
-    return file ? `${import.meta.env.BASE_URL}assets/characters/${file}` : null;
-}
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
 function parseFloor(floor: string | number | undefined): number {
     if (floor === undefined || floor === '?') return 0;
     return parseInt(String(floor), 10) || 0;
@@ -69,27 +29,6 @@ function parseTime(time: string | undefined): number | null {
     if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
     if (parts.length === 2) return parts[0] * 60 + parts[1];
     return null;
-}
-
-function formatSeconds(totalSeconds: number): string {
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    if (h > 0) return `${h}h ${m}m ${s}s`;
-    if (m > 0) return `${m}m ${s}s`;
-    return `${s}s`;
-}
-
-function formatTotalTime(totalSeconds: number): string {
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
-}
-
-function pct(num: number, denom: number): string {
-    if (denom === 0) return '—';
-    return `${Math.round((num / denom) * 100)}%`;
 }
 
 function avg(values: number[]): number | null {

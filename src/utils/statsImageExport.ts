@@ -1,6 +1,9 @@
 import type { CardData } from '../types';
 import { formatCardName, getCardPortraitId } from './cardUtils';
 import { formatEncounterName } from './encounterDict';
+import { loadCachedImage } from './canvasUtils';
+import { charIconUrl } from './characterMapper';
+import { pct, formatSeconds, formatTotalTime } from './formatUtils';
 
 // ── Canvas / colour constants ───────────────────────────────────────────────────────────────────
 const W   = 1920;
@@ -21,19 +24,6 @@ const C_RED    = '#e05252';
 const C_SURF   = 'rgba(255,255,255,0.06)';
 const C_BORDER = 'rgba(255,255,255,0.10)';
 const C_DIV    = 'rgba(255,255,255,0.07)';
-
-// ── Image loader (cached) ─────────────────────────────────────────────────────
-const imgCache = new Map<string, HTMLImageElement | null>();
-function loadImg(src: string): Promise<HTMLImageElement | null> {
-    if (imgCache.has(src)) return Promise.resolve(imgCache.get(src) ?? null);
-    return new Promise(resolve => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload  = () => { imgCache.set(src, img);   resolve(img);   };
-        img.onerror = () => { imgCache.set(src, null);  resolve(null);  };
-        img.src = src;
-    });
-}
 
 // ── Exported types ────────────────────────────────────────────────────────────
 export interface StatsTableRow {
@@ -97,44 +87,12 @@ export interface StatsSnapshot {
     multiplayerFallback?: boolean;
 }
 
-// ── Formatting helpers ────────────────────────────────────────────────────────
-function fmtSeconds(s: number): string {
-    const h   = Math.floor(s / 3600);
-    const m   = Math.floor((s % 3600) / 60);
-    const sec = s % 60;
-    if (h > 0) return `${h}h ${m}m ${sec}s`;
-    if (m > 0) return `${m}m ${sec}s`;
-    return `${sec}s`;
-}
-
-function fmtTotal(s: number): string {
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-
-function pct(n: number, d: number): string {
-    return d === 0 ? '—' : `${Math.round((n / d) * 100)}%`;
-}
-
+// ── Formatting helpers (local only) ──────────────────────────────────────────
 function clip(ctx: CanvasRenderingContext2D, text: string, maxW: number): string {
     if (ctx.measureText(text).width <= maxW) return text;
     let t = text;
     while (t.length > 0 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
     return t + '…';
-}
-
-// ── Character icon helpers ────────────────────────────────────────────────────
-const CHARACTER_ICONS: Record<string, string> = {
-    'The Ironclad':    'char_select_ironclad.webp',
-    'The Silent':      'char_select_silent.webp',
-    'The Defect':      'char_select_defect.webp',
-    'The Necrobinder': 'char_select_necrobinder.webp',
-    'The Regent':      'char_select_regent.webp',
-};
-function charIconUrl(name: string): string | null {
-    const file = CHARACTER_ICONS[name];
-    return file ? `${import.meta.env.BASE_URL}assets/characters/${file}` : null;
 }
 
 // ── Low-level draw helpers ────────────────────────────────────────────────────
@@ -227,7 +185,7 @@ async function drawTable(ctx: CanvasRenderingContext2D,
     if (title === 'By Character') {
         await Promise.all(rows.map(async row => {
             const url = charIconUrl(row.label);
-            if (url) iconMap.set(row.label, await loadImg(url));
+            if (url) iconMap.set(row.label, await loadCachedImage(url));
         }));
     }
 
@@ -312,7 +270,7 @@ async function drawEncounterTable(ctx: CanvasRenderingContext2D,
                                   subIconUrl?: string): Promise<number> {
     if (subIconUrl) {
         // Sub-heading: character icon + name in smaller style (matches drawCardRow sub-heading)
-        const icon    = await loadImg(subIconUrl);
+        const icon    = await loadCachedImage(subIconUrl);
         const fontSize = 16;
         const iconSz   = 20;
         const iconGap  = 8;
@@ -337,7 +295,7 @@ async function drawEncounterTable(ctx: CanvasRenderingContext2D,
     const iconMap = new Map<string, HTMLImageElement | null>();
     if (iconType === 'boss') {
         await Promise.all(rows.map(async row => {
-            const img = await loadImg(`${import.meta.env.BASE_URL}assets/bosses/${row.id}.webp`);
+            const img = await loadCachedImage(`${import.meta.env.BASE_URL}assets/bosses/${row.id}.webp`);
             iconMap.set(row.id, img);
         }));
     }
@@ -412,7 +370,7 @@ async function drawCardRow(ctx: CanvasRenderingContext2D,
         : 0);
 
     if (isSubTitle && iconUrl) {
-        const icon     = await loadImg(iconUrl);
+        const icon     = await loadCachedImage(iconUrl);
         const fontSize = 16;
         const iconSz   = 20;
         const iconGap  = 8;
@@ -434,7 +392,7 @@ async function drawCardRow(ctx: CanvasRenderingContext2D,
     }
 
     const imgs = await Promise.all(
-        cards.map(c => loadImg(`${import.meta.env.BASE_URL}assets/portraits/${getCardPortraitId(c.card)}.webp`))
+        cards.map(c => loadCachedImage(`${import.meta.env.BASE_URL}assets/portraits/${getCardPortraitId(c.card)}.webp`))
     );
 
     const totalW = cards.length * CARD_SZ + (cards.length - 1) * CARD_GAP;
@@ -498,7 +456,7 @@ async function drawRelicRow(ctx: CanvasRenderingContext2D,
     const startX = colX + Math.floor((colW - totalW) / 2);
 
     const imgs = await Promise.all(
-        relics.map(r => loadImg(`${import.meta.env.BASE_URL}assets/relics/${r.id}.webp`))
+        relics.map(r => loadCachedImage(`${import.meta.env.BASE_URL}assets/relics/${r.id}.webp`))
     );
 
     relics.forEach((tr, i) => {
@@ -560,7 +518,7 @@ export async function generateStatsImage(stats: StatsSnapshot): Promise<HTMLCanv
     if (stats.highestAscVictory !== null)
         metrics.push({ label: 'Best Ascension',   value: `A${stats.highestAscVictory}`, sub: 'highest cleared' });
     if (stats.longestRunTime !== null)
-        metrics.push({ label: 'Longest Run',       value: fmtSeconds(stats.longestRunTime), sub: 'single run' });
+        metrics.push({ label: 'Longest Run',       value: formatSeconds(stats.longestRunTime), sub: 'single run' });
     if (stats.avgFloor !== null)
         metrics.push({ label: 'Avg Floor',         value: String(stats.avgFloor), sub: 'all runs' });
     if (stats.avgDefeatFloor !== null)
@@ -568,11 +526,11 @@ export async function generateStatsImage(stats: StatsSnapshot): Promise<HTMLCanv
     if (stats.avgWinFloor !== null)
         metrics.push({ label: 'Avg Floor',         value: String(stats.avgWinFloor), sub: 'victories only' });
     if (stats.avgTime !== null)
-        metrics.push({ label: 'Avg Run Time',      value: fmtSeconds(stats.avgTime) });
+        metrics.push({ label: 'Avg Run Time',      value: formatSeconds(stats.avgTime) });
     if (stats.fastestWin !== null)
-        metrics.push({ label: 'Fastest Victory',   value: fmtSeconds(stats.fastestWin) });
+        metrics.push({ label: 'Fastest Victory',   value: formatSeconds(stats.fastestWin) });
     if (stats.totalTimeSeconds !== null)
-        metrics.push({ label: 'Total Time',        value: fmtTotal(stats.totalTimeSeconds), sub: 'across all runs' });
+        metrics.push({ label: 'Total Time',        value: formatTotalTime(stats.totalTimeSeconds), sub: 'across all runs' });
 
     const FULL_AW   = W - PAD * 2;
     const BOX_COLS  = Math.min(metrics.length, 6);

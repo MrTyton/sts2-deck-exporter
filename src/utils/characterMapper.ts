@@ -1,3 +1,20 @@
+// ── Character icon helpers ────────────────────────────────────────────────────
+// Used by StatsPage.tsx (React UI) and statsImageExport.ts (canvas export)
+// so that adding a new playable character only requires updating this one map.
+
+export const CHARACTER_ICONS: Record<string, string> = {
+    'The Ironclad':    'char_select_ironclad.webp',
+    'The Silent':      'char_select_silent.webp',
+    'The Defect':      'char_select_defect.webp',
+    'The Necrobinder': 'char_select_necrobinder.webp',
+    'The Regent':      'char_select_regent.webp',
+};
+
+export function charIconUrl(name: string): string | null {
+    const file = CHARACTER_ICONS[name];
+    return file ? `${import.meta.env.BASE_URL}assets/characters/${file}` : null;
+}
+
 export function getCharacterName(id: string | null | undefined): string | null {
     if (!id) return null;
 

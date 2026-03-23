@@ -1,4 +1,4 @@
-import type { CardData, RawCardData } from '../types';
+import type { CardData, PlayerRunData, RawCardData, RunData } from '../types';
 
 export function parseDeckArray(rawDeckArray: RawCardData[]): CardData[] {
     // rawDeckArray looks like: [{ id: "CARD.STRIKE_SILENT", floor_added_to_deck: 1 }, ...]
@@ -80,4 +80,19 @@ export function parseDeckArray(rawDeckArray: RawCardData[]): CardData[] {
     });
 
     return cards;
+}
+
+/**
+ * Returns the normalised per-player array for a run.
+ * Single-player (legacy) runs expose a flat `cards` / `meta.relics` shape;
+ * this helper wraps them in a single-element array so callers never need to
+ * branch on `run.players` vs. `run.cards`.
+ * Used by both DeckVisualizer.tsx and canvasExport.ts.
+ */
+export function getPlayersToRender(run: RunData): PlayerRunData[] {
+    return run.players ?? [{
+        characterName: run.meta?.characterName ?? 'Your Run Deck',
+        cards: run.cards ?? [],
+        relics: run.meta?.relics ?? [],
+    }];
 }
