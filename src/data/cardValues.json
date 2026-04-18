@@ -66,7 +66,7 @@
     "keywords": [],
     "energyCost": 1,
     "cardType": "Skill",
-    "cardRarity": "Common"
+    "cardRarity": "Uncommon"
   },
   "ADAPTIVE_STRIKE": {
     "category": "cards",
@@ -225,12 +225,12 @@
     "category": "cards",
     "vars": {
       "DexterityPower": {
-        "base": 3.0
+        "base": 2.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "DexterityPower": 2.0
+      "DexterityPower": 1.0
     },
     "keywords": [],
     "energyCost": 0,
@@ -291,9 +291,7 @@
       }
     },
     "stringVars": {},
-    "upgrades": {
-      "ArsenalPower": 1.0
-    },
+    "upgrades": {},
     "keywords": [],
     "energyCost": 1,
     "cardType": "Power",
@@ -470,10 +468,10 @@
     },
     "stringVars": {},
     "upgrades": {
-      "Damage": 6.0
+      "EnergyCost": -2.0
     },
     "keywords": [],
-    "energyCost": 6,
+    "energyCost": 9,
     "cardType": "Attack",
     "cardRarity": "Rare"
   },
@@ -633,25 +631,19 @@
   },
   "BEGONE": {
     "category": "cards",
-    "vars": {
-      "Damage": {
-        "base": 4.0
-      }
-    },
+    "vars": {},
     "stringVars": {},
-    "upgrades": {
-      "Damage": 1.0
-    },
+    "upgrades": {},
     "keywords": [],
     "energyCost": 1,
-    "cardType": "Attack",
+    "cardType": "Skill",
     "cardRarity": "Common"
   },
   "BELIEVE_IN_YOU": {
     "category": "cards",
     "vars": {
       "Energy": {
-        "base": 3.0
+        "base": 2.0
       }
     },
     "stringVars": {},
@@ -744,13 +736,13 @@
   "BLADE_OF_INK": {
     "category": "cards",
     "vars": {
-      "StrengthPower": {
+      "Cards": {
         "base": 2.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "StrengthPower": 1.0
+      "Cards": 1.0
     },
     "keywords": [],
     "energyCost": 1,
@@ -973,19 +965,19 @@
   "BORROWED_TIME": {
     "category": "cards",
     "vars": {
-      "DoomPower": {
-        "base": 3.0
+      "ExtraCost": {
+        "base": 1.0
       },
       "Energy": {
-        "base": 1.0
+        "base": 4.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "Energy": 1.0
+      "Energy": 2.0
     },
     "keywords": [],
-    "energyCost": 0,
+    "energyCost": 1,
     "cardType": "Skill",
     "cardRarity": "Uncommon"
   },
@@ -1039,11 +1031,11 @@
     },
     "stringVars": {},
     "upgrades": {
-      "Damage": 5.0,
+      "Damage": 10.0,
       "VulnerablePower": 2.0
     },
     "keywords": [],
-    "energyCost": 2,
+    "energyCost": 1,
     "cardType": "Attack",
     "cardRarity": "Ancient"
   },
@@ -1209,7 +1201,7 @@
     "keywords": [
       "exhaust"
     ],
-    "energyCost": 2,
+    "energyCost": 1,
     "cardType": "Skill",
     "cardRarity": "Rare"
   },
@@ -1449,7 +1441,7 @@
     },
     "stringVars": {},
     "upgrades": {
-      "Damage": 2.0
+      "Repeat": 1.0
     },
     "keywords": [],
     "energyCost": 2,
@@ -1537,15 +1529,12 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 17.0
-      },
-      "CardsToExhaust": {
-        "base": 1.0
+        "base": 18.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "Damage": 5.0
+      "Damage": 6.0
     },
     "keywords": [],
     "energyCost": 2,
@@ -1672,12 +1661,12 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 9.0
+        "base": 11.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "Damage": 3.0
+      "Damage": 4.0
     },
     "keywords": [],
     "energyCost": 0,
@@ -1701,7 +1690,7 @@
     "keywords": [],
     "energyCost": 1,
     "cardType": "Skill",
-    "cardRarity": "Rare"
+    "cardRarity": "Uncommon"
   },
   "COMET": {
     "category": "cards",
@@ -1889,7 +1878,7 @@
     "category": "cards",
     "vars": {
       "CorrosiveWave": {
-        "base": 3.0
+        "base": 2.0
       }
     },
     "stringVars": {},
@@ -2101,7 +2090,7 @@
     "category": "cards",
     "vars": {
       "DanseMacabrePower": {
-        "base": 3.0
+        "base": 4.0
       },
       "Energy": {
         "base": 2.0
@@ -2109,7 +2098,7 @@
     },
     "stringVars": {},
     "upgrades": {
-      "DanseMacabrePower": 1.0
+      "DanseMacabrePower": 2.0
     },
     "keywords": [],
     "energyCost": 1,
@@ -2270,7 +2259,7 @@
         "base": 3.0
       },
       "Damage": {
-        "base": 7.0
+        "base": 10.0
       }
     },
     "stringVars": {},
@@ -2490,8 +2479,7 @@
     },
     "stringVars": {},
     "upgrades": {
-      "Block": 1.0,
-      "WeakPower": 1.0
+      "Block": 3.0
     },
     "keywords": [
       "ethereal"
@@ -2622,7 +2610,9 @@
     "upgrades": {
       "Summon": 1.0
     },
-    "keywords": [],
+    "keywords": [
+      "exhaust"
+    ],
     "energyCost": "X",
     "cardType": "Skill",
     "cardRarity": "Uncommon"
@@ -2702,12 +2692,17 @@
   "DOMINATE": {
     "category": "cards",
     "vars": {
+      "VulnerablePower": {
+        "base": 1.0
+      },
       "StrengthPerVulnerable": {
         "base": 1.0
       }
     },
     "stringVars": {},
-    "upgrades": {},
+    "upgrades": {
+      "VulnerablePower": 1.0
+    },
     "keywords": [
       "exhaust"
     ],
@@ -3088,12 +3083,12 @@
     "category": "cards",
     "vars": {
       "PlatingPower": {
-        "base": 7.0
+        "base": 9.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "PlatingPower": 2.0
+      "PlatingPower": 3.0
     },
     "keywords": [],
     "energyCost": 3,
@@ -3201,7 +3196,7 @@
         "base": 1.0
       },
       "Damage": {
-        "base": 7.0
+        "base": 8.0
       }
     },
     "stringVars": {},
@@ -3378,7 +3373,7 @@
     "category": "cards",
     "vars": {
       "StrengthPower": {
-        "base": 2.0
+        "base": 3.0
       },
       "Damage": {
         "base": 5.0
@@ -3588,7 +3583,7 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 7.0
+        "base": 6.0
       }
     },
     "stringVars": {},
@@ -3625,22 +3620,21 @@
   "FOLLOW_THROUGH": {
     "category": "cards",
     "vars": {
-      "WeakPower": {
-        "base": 1.0
-      },
       "Damage": {
-        "base": 6.0
+        "base": 7.0
+      },
+      "CardCount": {
+        "base": 5.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "Damage": 2.0,
-      "WeakPower": 1.0
+      "Damage": 2.0
     },
     "keywords": [],
     "energyCost": 1,
     "cardType": "Attack",
-    "cardRarity": "Uncommon"
+    "cardRarity": "Common"
   },
   "FOLLY": {
     "category": "cards",
@@ -3650,7 +3644,8 @@
     "keywords": [
       "unplayable",
       "eternal",
-      "innate"
+      "innate",
+      "ethereal"
     ],
     "energyCost": -1,
     "cardType": "Curse",
@@ -3713,7 +3708,9 @@
     "upgrades": {
       "Energy": 1.0
     },
-    "keywords": [],
+    "keywords": [
+      "exhaust"
+    ],
     "energyCost": 1,
     "cardType": "Skill",
     "cardRarity": "Uncommon"
@@ -3864,7 +3861,7 @@
     "category": "cards",
     "vars": {
       "Block": {
-        "base": 7.0
+        "base": 8.0
       },
       "Stars": {
         "base": 1.0
@@ -4005,7 +4002,7 @@
     "category": "cards",
     "vars": {
       "BlockNextTurn": {
-        "base": 4.0
+        "base": 5.0
       },
       "Block": {
         "base": 11.0
@@ -4025,7 +4022,7 @@
     "category": "cards",
     "vars": {
       "Cards": {
-        "base": 2.0
+        "base": 1.0
       },
       "Stars": {
         "base": 1.0
@@ -4081,37 +4078,17 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 50.0
+        "base": 60.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "Damage": 10.0
+      "Damage": 15.0
     },
     "keywords": [],
     "energyCost": 0,
     "cardType": "Attack",
     "cardRarity": "Rare"
-  },
-  "GRAPPLE": {
-    "category": "cards",
-    "vars": {
-      "GrapplePower": {
-        "base": 5.0
-      },
-      "Damage": {
-        "base": 7.0
-      }
-    },
-    "stringVars": {},
-    "upgrades": {
-      "GrapplePower": 2.0,
-      "Damage": 2.0
-    },
-    "keywords": [],
-    "energyCost": 1,
-    "cardType": "Attack",
-    "cardRarity": "Uncommon"
   },
   "GRAVEBLAST": {
     "category": "cards",
@@ -4143,7 +4120,7 @@
     },
     "stringVars": {},
     "upgrades": {
-      "Block": 2.0
+      "Block": 3.0
     },
     "keywords": [],
     "energyCost": 1,
@@ -4415,7 +4392,7 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 17.0
+        "base": 20.0
       },
       "Repeat": {
         "base": 1.0
@@ -4478,7 +4455,7 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 14.0
+        "base": 15.0
       },
       "HpLoss": {
         "base": 2.0
@@ -4591,10 +4568,10 @@
       }
     },
     "stringVars": {},
-    "upgrades": {
-      "FocusPower": 1.0
-    },
-    "keywords": [],
+    "upgrades": {},
+    "keywords": [
+      "exhaust"
+    ],
     "energyCost": 0,
     "cardType": "Skill",
     "cardRarity": "Common"
@@ -4626,7 +4603,9 @@
     "upgrades": {
       "Cards": 1.0
     },
-    "keywords": [],
+    "keywords": [
+      "exhaust"
+    ],
     "energyCost": 1,
     "cardType": "Skill",
     "cardRarity": "Uncommon"
@@ -4654,7 +4633,7 @@
     "category": "cards",
     "vars": {
       "Block": {
-        "base": 9.0
+        "base": 10.0
       }
     },
     "stringVars": {},
@@ -4954,12 +4933,12 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 24.0
+        "base": 27.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "Damage": 6.0
+      "Damage": 8.0
     },
     "keywords": [],
     "energyCost": 4,
@@ -4973,12 +4952,13 @@
         "base": 8.0
       },
       "Increase": {
-        "base": 3.0
+        "base": 4.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "Increase": 2.0
+      "Increase": 2.0,
+      "Damage": 2.0
     },
     "keywords": [],
     "energyCost": 1,
@@ -5086,10 +5066,10 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 7.0
+        "base": 3.0
       },
       "Shivs": {
-        "base": 1.0
+        "base": 2.0
       }
     },
     "stringVars": {},
@@ -5478,7 +5458,7 @@
         "base": 4.0
       },
       "CalculationBase": {
-        "base": 8.0
+        "base": 9.0
       }
     },
     "stringVars": {},
@@ -5615,7 +5595,7 @@
     "keywords": [
       "exhaust"
     ],
-    "energyCost": 1,
+    "energyCost": 0,
     "cardType": "Attack",
     "cardRarity": "Token"
   },
@@ -5641,7 +5621,7 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 7.0
+        "base": 6.0
       },
       "Cards": {
         "base": 1.0
@@ -5855,7 +5835,8 @@
     },
     "stringVars": {},
     "upgrades": {
-      "Damage": 4.0
+      "Damage": 4.0,
+      "Cards": 1.0
     },
     "keywords": [
       "exhaust"
@@ -5987,6 +5968,24 @@
     "keywords": [],
     "energyCost": 1,
     "cardType": "Power",
+    "cardRarity": "Rare"
+  },
+  "NOT_YET": {
+    "category": "cards",
+    "vars": {
+      "Heal": {
+        "base": 10.0
+      }
+    },
+    "stringVars": {},
+    "upgrades": {
+      "Heal": 3.0
+    },
+    "keywords": [
+      "exhaust"
+    ],
+    "energyCost": 2,
+    "cardType": "Skill",
     "cardRarity": "Rare"
   },
   "NOXIOUS_FUMES": {
@@ -6259,12 +6258,12 @@
     "category": "cards",
     "vars": {
       "ParryPower": {
-        "base": 6.0
+        "base": 10.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "ParryPower": 3.0
+      "ParryPower": 4.0
     },
     "keywords": [],
     "energyCost": 1,
@@ -6312,7 +6311,7 @@
         "base": 2.0
       },
       "Block": {
-        "base": 8.0
+        "base": 9.0
       }
     },
     "stringVars": {},
@@ -6456,12 +6455,12 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 17.0
+        "base": 15.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "Damage": 5.0
+      "Damage": 4.0
     },
     "keywords": [],
     "energyCost": 3,
@@ -6638,7 +6637,9 @@
       }
     },
     "stringVars": {},
-    "upgrades": {},
+    "upgrades": {
+      "Energy": 1.0
+    },
     "keywords": [
       "exhaust"
     ],
@@ -7051,7 +7052,7 @@
         "base": 1.0
       },
       "Forge": {
-        "base": 6.0
+        "base": 9.0
       }
     },
     "stringVars": {},
@@ -7266,7 +7267,7 @@
     "keywords": [],
     "energyCost": 1,
     "cardType": "Attack",
-    "cardRarity": "Uncommon"
+    "cardRarity": "Event"
   },
   "ROCKET_PUNCH": {
     "category": "cards",
@@ -7457,7 +7458,7 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 8.0
+        "base": 9.0
       }
     },
     "stringVars": {},
@@ -7477,11 +7478,13 @@
       }
     },
     "stringVars": {},
-    "upgrades": {},
+    "upgrades": {
+      "EnergyCost": -1.0
+    },
     "keywords": [
       "ethereal"
     ],
-    "energyCost": 0,
+    "energyCost": 1,
     "cardType": "Skill",
     "cardRarity": "Rare"
   },
@@ -7529,7 +7532,7 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 6.0
+        "base": 9.0
       },
       "Cards": {
         "base": 3.0
@@ -7585,7 +7588,7 @@
     },
     "stringVars": {},
     "upgrades": {
-      "SerpentFormPower": 1.0
+      "SerpentFormPower": 2.0
     },
     "keywords": [],
     "energyCost": 3,
@@ -7772,12 +7775,6 @@
     "vars": {
       "Damage": {
         "base": 4.0
-      },
-      "CalculationBase": {
-        "base": 0.0
-      },
-      "CalculationExtra": {
-        "base": 1.0
       }
     },
     "stringVars": {},
@@ -7886,7 +7883,7 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 7.0
+        "base": 8.0
       }
     },
     "stringVars": {},
@@ -8048,7 +8045,7 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 8.0
+        "base": 9.0
       },
       "Stars": {
         "base": 1.0
@@ -8182,9 +8179,7 @@
       }
     },
     "stringVars": {},
-    "upgrades": {
-      "SpeedsterPower": 1.0
-    },
+    "upgrades": {},
     "keywords": [],
     "energyCost": 2,
     "cardType": "Power",
@@ -8224,15 +8219,15 @@
     "category": "cards",
     "vars": {
       "Damage": {
-        "base": 6.0
+        "base": 5.0
       },
-      "Cards": {
-        "base": 1.0
+      "Repeat": {
+        "base": 2.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "Damage": 3.0
+      "Repeat": 1.0
     },
     "keywords": [],
     "energyCost": 0,
@@ -8268,13 +8263,16 @@
   "SPOILS_OF_BATTLE": {
     "category": "cards",
     "vars": {
+      "Cards": {
+        "base": 2.0
+      },
       "Forge": {
-        "base": 10.0
+        "base": 5.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "Forge": 5.0
+      "Forge": 3.0
     },
     "keywords": [],
     "energyCost": 1,
@@ -8410,12 +8408,8 @@
     "category": "cards",
     "vars": {},
     "stringVars": {},
-    "upgrades": {
-      "EnergyCost": -1.0
-    },
-    "keywords": [
-      "exhaust"
-    ],
+    "upgrades": {},
+    "keywords": [],
     "energyCost": 1,
     "cardType": "Skill",
     "cardRarity": "Rare"
@@ -9264,14 +9258,16 @@
     "category": "cards",
     "vars": {
       "VulnerablePower": {
-        "base": 2.0
+        "base": 3.0
       }
     },
     "stringVars": {},
     "upgrades": {
       "VulnerablePower": 1.0
     },
-    "keywords": [],
+    "keywords": [
+      "exhaust"
+    ],
     "energyCost": 1,
     "cardType": "Skill",
     "cardRarity": "Common"
@@ -9433,12 +9429,12 @@
     "category": "cards",
     "vars": {
       "Block": {
-        "base": 9.0
+        "base": 6.0
       }
     },
     "stringVars": {},
     "upgrades": {
-      "Block": 3.0
+      "Block": 2.0
     },
     "keywords": [
       "sly"
@@ -9571,10 +9567,10 @@
       }
     },
     "stringVars": {},
-    "upgrades": {
-      "VoidFormPower": 1.0
-    },
-    "keywords": [],
+    "upgrades": {},
+    "keywords": [
+      "ethereal"
+    ],
     "energyCost": 3,
     "cardType": "Power",
     "cardRarity": "Rare"
@@ -9610,7 +9606,7 @@
     "keywords": [
       "exhaust"
     ],
-    "energyCost": 2,
+    "energyCost": 3,
     "cardType": "Skill",
     "cardRarity": "Rare"
   },
@@ -9771,7 +9767,7 @@
         "base": 7.0
       },
       "Forge": {
-        "base": 5.0
+        "base": 7.0
       }
     },
     "stringVars": {},
@@ -9822,7 +9818,7 @@
     "category": "relics",
     "vars": {
       "Gold": {
-        "base": 10.0
+        "base": 15.0
       }
     },
     "stringVars": {},
@@ -10043,7 +10039,7 @@
         "base": 5.0
       },
       "Heal": {
-        "base": 15.0
+        "base": 20.0
       }
     },
     "stringVars": {},
@@ -10077,6 +10073,17 @@
     "vars": {
       "Summon": {
         "base": 1.0
+      }
+    },
+    "stringVars": {},
+    "upgrades": {},
+    "keywords": []
+  },
+  "BOWLER_HAT": {
+    "category": "relics",
+    "vars": {
+      "GoldIncrease": {
+        "base": 1.25
       }
     },
     "stringVars": {},
@@ -10578,7 +10585,7 @@
     "category": "relics",
     "vars": {
       "Cards": {
-        "base": 3.0
+        "base": 2.0
       },
       "HpLoss": {
         "base": 15.0
@@ -10714,6 +10721,17 @@
         "base": 1.0
       },
       "Turns": {
+        "base": 3.0
+      }
+    },
+    "stringVars": {},
+    "upgrades": {},
+    "keywords": []
+  },
+  "HEFTY_TABLET": {
+    "category": "relics",
+    "vars": {
+      "Cards": {
         "base": 3.0
       }
     },
@@ -10883,7 +10901,7 @@
     "category": "relics",
     "vars": {
       "MaxHp": {
-        "base": 10.0
+        "base": 12.0
       }
     },
     "stringVars": {},
@@ -11080,6 +11098,20 @@
     "vars": {
       "Damage": {
         "base": 9.0
+      }
+    },
+    "stringVars": {},
+    "upgrades": {},
+    "keywords": []
+  },
+  "NEOWS_BONES": {
+    "category": "relics",
+    "vars": {
+      "Relics": {
+        "base": 2.0
+      },
+      "Curses": {
+        "base": 1.0
       }
     },
     "stringVars": {},
@@ -11326,11 +11358,39 @@
     "upgrades": {},
     "keywords": []
   },
+  "PENDULUM": {
+    "category": "relics",
+    "vars": {
+      "Cards": {
+        "base": 1.0
+      },
+      "Turns": {
+        "base": 3.0
+      }
+    },
+    "stringVars": {},
+    "upgrades": {},
+    "keywords": []
+  },
   "PERMAFROST": {
     "category": "relics",
     "vars": {
       "Block": {
-        "base": 6.0
+        "base": 7.0
+      }
+    },
+    "stringVars": {},
+    "upgrades": {},
+    "keywords": []
+  },
+  "PHIAL_HOLSTER": {
+    "category": "relics",
+    "vars": {
+      "PotionSlots": {
+        "base": 1.0
+      },
+      "Potions": {
+        "base": 2.0
       }
     },
     "stringVars": {},
@@ -11369,7 +11429,7 @@
     "category": "relics",
     "vars": {
       "Heal": {
-        "base": 4.0
+        "base": 5.0
       }
     },
     "stringVars": {},
@@ -11441,7 +11501,7 @@
     "category": "relics",
     "vars": {
       "Damage": {
-        "base": 13.0
+        "base": 16.0
       },
       "Cards": {
         "base": 2.0
@@ -11466,7 +11526,7 @@
     "category": "relics",
     "vars": {
       "Cards": {
-        "base": 5.0
+        "base": 3.0
       }
     },
     "stringVars": {},
@@ -11866,7 +11926,7 @@
     "category": "relics",
     "vars": {
       "Cards": {
-        "base": 3.0
+        "base": 2.0
       }
     },
     "stringVars": {},
@@ -12221,6 +12281,17 @@
     "upgrades": {},
     "keywords": []
   },
+  "WINGED_BOOTS": {
+    "category": "relics",
+    "vars": {
+      "Rooms": {
+        "base": 3.0
+      }
+    },
+    "stringVars": {},
+    "upgrades": {},
+    "keywords": []
+  },
   "WONGOS_MYSTERY_TICKET": {
     "category": "relics",
     "vars": {
@@ -12262,6 +12333,20 @@
     "vars": {
       "Times": {
         "base": 1.0
+      }
+    },
+    "stringVars": {},
+    "upgrades": {},
+    "keywords": []
+  },
+  "INKY": {
+    "category": "enchantments",
+    "vars": {
+      "WeakPower": {
+        "base": 1.0
+      },
+      "Damage": {
+        "base": 2.0
       }
     },
     "stringVars": {},
@@ -12817,17 +12902,6 @@
     "upgrades": {},
     "keywords": []
   },
-  "BLADE_OF_INK_POWER": {
-    "category": "powers",
-    "vars": {
-      "StrengthApplied": {
-        "base": 0.0
-      }
-    },
-    "stringVars": {},
-    "upgrades": {},
-    "keywords": []
-  },
   "COLOSSUS_POWER": {
     "category": "powers",
     "vars": {
@@ -12843,7 +12917,7 @@
     "category": "powers",
     "vars": {
       "StrengthPower": {
-        "base": 5.0
+        "base": 6.0
       },
       "Block": {
         "base": 99.0
