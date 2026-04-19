@@ -1,7 +1,12 @@
+import io
+import math
 import os
 import glob
 import re
+import struct
 import pathlib
+from PIL import Image
+
 
 def unpack_container(data):
     # webp
@@ -21,12 +26,53 @@ def unpack_container(data):
     if start >= 0:
         end = data.find(bytes.fromhex("FF D9")) + 2
         return [".jpg", data[start:end]]
-    
+
     return False
+
+
+def decode_bptc_ctex(ctex_data):
+    """Decode a Godot BPTC (BC7) .ctex file to a PIL Image (RGBA).
+
+    Godot stores raw BC7 blocks starting at byte 52 of the .bptc.ctex file.
+    We wrap the raw data in a DDS+DXT10 header so Pillow 11+ can decode it.
+    """
+    if ctex_data[:4] != b'GST2':
+        return None
+    w = struct.unpack_from('<I', ctex_data, 8)[0]
+    h = struct.unpack_from('<I', ctex_data, 12)[0]
+    bc7_data = ctex_data[52:]
+
+    bw = math.ceil(w / 4)
+    bh = math.ceil(h / 4)
+    linear_size = bw * bh * 16
+
+    # Build a 124-byte DDSURFACEDESC2 header.
+    dds_header  = struct.pack('<I', 124)            # dwSize
+    dds_header += struct.pack('<I', 0x00021007)     # dwFlags: CAPS|HEIGHT|WIDTH|PIXELFORMAT|LINEARSIZE
+    dds_header += struct.pack('<II', h, w)          # dwHeight, dwWidth
+    dds_header += struct.pack('<I', linear_size)    # dwPitchOrLinearSize
+    dds_header += struct.pack('<I', 0)              # dwDepth
+    dds_header += struct.pack('<I', 1)              # dwMipMapCount
+    dds_header += b'\x00' * 44                     # dwReserved1[11]
+    # DDPIXELFORMAT (32 bytes)
+    dds_header += struct.pack('<II', 32, 4)         # dwSize, DDPF_FOURCC
+    dds_header += b'DX10'                           # dwFourCC
+    dds_header += struct.pack('<IIIII', 0, 0, 0, 0, 0)  # dwRGBBitCount..dwABitMask + pad
+    # DDCAPS2 (16 bytes) + dwReserved2 (4 bytes)
+    dds_header += struct.pack('<IIIII', 0x1000, 0, 0, 0, 0)
+
+    # DDS_HEADER_DXT10 (20 bytes): DXGI_FORMAT_BC7_UNORM=98, TEXTURE2D=3
+    dxt10 = struct.pack('<IIIII', 98, 3, 0, 1, 0)
+
+    dds = b'DDS ' + dds_header + dxt10 + bc7_data
+    img = Image.open(io.BytesIO(dds))
+    img.load()
+    return img
+
 
 import argparse
 
-parser = argparse.ArgumentParser(description="Extract cards, portraits, and relics from Godot .import files.")
+parser = argparse.ArgumentParser(description="Extract cards, portraits, relics, and badges from Godot .import files.")
 parser.add_argument("--output-dir", type=str, default="../../public/assets", help="Output directory for extracted images")
 args = parser.parse_args()
 
@@ -42,60 +88,92 @@ count = 0
 grouped_files = {}
 
 for f in import_files:
-    if ('cards' in f.lower() or 'portraits' in f.lower() or 'relics' in f.lower()) and 'png.import' in f.lower():
-        is_beta = '\\beta\\' in f.lower() or '/beta/' in f.lower()
-        
-        orig_name = os.path.basename(f).replace('.import', '')
-        base_name = os.path.splitext(orig_name)[0]
-        
-        if "relics" in f.lower():
-            sub_dir = "relics"
-        elif "portraits" in f.lower():
-            sub_dir = "portraits"
-        else:
-            sub_dir = "cards"
-            
-        key = (sub_dir, base_name)
-        if key not in grouped_files:
-            grouped_files[key] = {'beta': None, 'non_beta': None}
-            
-        if is_beta:
-            grouped_files[key]['beta'] = f
-        else:
-            grouped_files[key]['non_beta'] = f
+    f_lower = f.lower().replace('\\', '/')
+    is_badge = 'game_over_screen/badge_' in f_lower
+    is_relevant = (
+        is_badge or
+        'cards' in f_lower or
+        'portraits' in f_lower or
+        'relics' in f_lower
+    )
+    if not (is_relevant and 'png.import' in f_lower):
+        continue
+
+    is_beta = '/beta/' in f_lower
+
+    orig_name = os.path.basename(f).replace('.import', '')
+    base_name = os.path.splitext(orig_name)[0]
+
+    if is_badge:
+        sub_dir = "badges"
+    elif "relics" in f_lower:
+        sub_dir = "relics"
+    elif "portraits" in f_lower:
+        sub_dir = "portraits"
+    else:
+        sub_dir = "cards"
+
+    key = (sub_dir, base_name)
+    if key not in grouped_files:
+        grouped_files[key] = {'beta': None, 'non_beta': None}
+
+    if is_beta:
+        grouped_files[key]['beta'] = f
+    else:
+        grouped_files[key]['non_beta'] = f
 
 for key, files in grouped_files.items():
     f = files['non_beta']
     if f is None:
         f = files['beta']
-        
     if f is None:
         continue
 
     with open(f, 'r') as fp:
         content = fp.read()
-    
+
+    sub_dir = key[0]
+    orig_name = os.path.basename(f).replace('.import', '')
+    base_name = os.path.splitext(orig_name)[0]
+
+    # Try BPTC path first (Godot 4.5+ GPU-compressed format)
+    bptc_match = re.search(r'path\.bptc="res://(.*)"', content)
+    if bptc_match:
+        ctex_path = bptc_match.group(1)
+        if not os.path.exists(ctex_path):
+            print("Missing BPTC CTEX:", ctex_path)
+            continue
+        with open(ctex_path, 'rb') as fp:
+            ctex_data = fp.read()
+        try:
+            img = decode_bptc_ctex(ctex_data)
+            if img is None:
+                print("Could not decode BPTC:", ctex_path)
+                continue
+            out_name = base_name + ".webp"
+            pathlib.Path(os.path.join(output_dir, sub_dir)).mkdir(parents=True, exist_ok=True)
+            out_path = os.path.join(output_dir, sub_dir, out_name)
+            img.save(out_path, "WEBP")
+            count += 1
+        except Exception as e:
+            print(f"Error decoding BPTC {ctex_path}: {e}")
+        continue
+
+    # Fall back to embedded container format (WebP/PNG/JPG inside .ctex)
     path_match = re.search(r'path="res://(.*)"', content)
     if path_match:
         ctex_path = path_match.group(1)
-        # handle case sensitivity
         if not os.path.exists(ctex_path):
             print("Missing CTEX:", ctex_path)
             continue
-            
         with open(ctex_path, 'rb') as fp:
             ctex_data = fp.read()
-        
         unpacked = unpack_container(ctex_data)
         if unpacked:
             ext, data = unpacked
-            
-            orig_name = os.path.basename(f).replace('.import', '')
-            orig_name = os.path.splitext(orig_name)[0] + ext
-            sub_dir = key[0]
-                
+            out_name = base_name + ext
             pathlib.Path(os.path.join(output_dir, sub_dir)).mkdir(parents=True, exist_ok=True)
-            out_path = os.path.join(output_dir, sub_dir, orig_name)
+            out_path = os.path.join(output_dir, sub_dir, out_name)
             with open(out_path, 'wb') as out_f:
                 out_f.write(data)
             count += 1
